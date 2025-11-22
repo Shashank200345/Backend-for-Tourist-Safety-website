@@ -1,0 +1,67 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String   @id @default(uuid())
+  touristId         String   @unique
+  blockchainId      String?  @unique
+  email            String   @unique
+  name             String
+  documentType     String   // 'aadhaar' | 'passport'
+  documentNumber   String
+  documentHash     String?
+  country          String?
+  state            String?
+  itineraryStartDate DateTime?
+  itineraryEndDate   DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  sessions         Session[]
+  blockchainRecords BlockchainRecord[]
+}
+
+model Session {
+  id                String   @id @default(uuid())
+  touristId         String
+  token            String   @unique
+  blockchainId     String?
+  createdAt        DateTime @default(now())
+  expiresAt        DateTime
+  itineraryEndDate DateTime
+  isActive         Boolean  @default(true)
+  lastAccessedAt   DateTime @default(now())
+  
+  user             User     @relation(fields: [touristId], references: [touristId], onDelete: Cascade)
+  
+  @@index([touristId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+model BlockchainRecord {
+  id              String   @id @default(uuid())
+  touristId       String
+  transactionHash String   @unique
+  blockNumber     BigInt?
+  ipfsHash        String?
+  documentHash    String
+  createdAt       DateTime @default(now())
+  
+  user            User     @relation(fields: [touristId], references: [touristId], onDelete: Cascade)
+  
+  @@index([touristId])
+  @@index([transactionHash])
+}
+
+
+

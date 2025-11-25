@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Scanner - Tourist Safety</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@latest/dist/html5-qrcode.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔍 QR Code Scanner</h1>
+            <h2>Scan QR Code to Login</h2>
+        </header>
+
+        <div class="step">
+            <div class="step-header">
+                <span class="step-number">📱</span>
+                <h3>Scan QR Code</h3>
+            </div>
+
+            <div id="scanner-container" class="scanner-container">
+                <div id="qr-reader" style="width: 100%; max-width: 500px; margin: 0 auto;"></div>
+            </div>
+
+            <div id="scanStatus" class="status"></div>
+            <div id="scanResult" class="result"></div>
+
+            <div class="actions">
+                <button onclick="startScanner()" id="startBtn">Start Scanner</button>
+                <button onclick="stopScanner()" id="stopBtn" style="display: none;">Stop Scanner</button>
+                <button onclick="window.location.href='index.html'" class="secondary">Back to Registration</button>
+            </div>
+
+            <div class="instructions">
+                <h4>How to use:</h4>
+                <ol>
+                    <li>Click "Start Scanner"</li>
+                    <li>Allow camera permission</li>
+                    <li>Point camera at QR code</li>
+                    <li>QR code will show the Blockchain ID</li>
+                    <li>Automatic verification and login</li>
+                </ol>
+                <p class="note">
+                    <strong>Note:</strong> Each QR code can only be used once. After scanning, it will be invalidated.
+                    <br><strong>What you'll see:</strong> The scanned QR code will display the Blockchain ID directly.
+                </p>
+            </div>
+        </div>
+
+        <!-- API Status -->
+        <div class="api-status">
+            <div id="apiStatus" class="status-indicator">
+                <span id="apiStatusText">Checking API connection...</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="qr-scanner.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OfflinePaperlessKyc>
+    <UidData>
+        <Poi>
+            <name>Test User</name>
+            <dob>19900101</dob>
+            <gender>M</gender>
+            <co>123 Test Street</co>
+            <street>Test Area</street>
+            <loc>Test Locality</loc>
+            <vtc>Test City</vtc>
+            <dist>Test District</dist>
+            <state>Delhi</state>
+            <pc>110001</pc>
+        </Poi>
+        <ReferenceId>REF123456789012</ReferenceId>
+        <ts>2024-01-01T00:00:00.000Z</ts>
+    </UidData>
+    <Signature>TestSignature</Signature>
+</OfflinePaperlessKyc>
+
+
+

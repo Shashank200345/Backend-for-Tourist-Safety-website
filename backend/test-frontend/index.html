@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tourist Safety - Onboarding</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏛️ Tourist Safety System</h1>
+            <h2>Airport Onboarding</h2>
+        </header>
+
+        <!-- Onboarding Form -->
+        <div class="step" id="onboardingForm">
+            <div class="step-header">
+                <span class="step-number">1</span>
+                <h3>Complete Your Registration</h3>
+            </div>
+            
+            <form id="registrationForm" onsubmit="completeOnboarding(event)">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Full Name *</label>
+                        <input type="text" id="name" required placeholder="Enter your full name">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Email Address *</label>
+                        <input type="email" id="email" required placeholder="user@example.com">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Aadhaar Number *</label>
+                        <input type="text" id="aadhaarNumber" required 
+                               placeholder="12-digit Aadhaar number" 
+                               pattern="[0-9]{12}" 
+                               maxlength="12">
+                        <small>Enter your 12-digit Aadhaar number</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Date of Birth *</label>
+                        <input type="date" id="dob" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Gender *</label>
+                        <select id="gender" required>
+                            <option value="">Select Gender</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Transgender">Transgender</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Country *</label>
+                        <input type="text" id="country" value="India" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Address *</label>
+                    <textarea id="address" required rows="3" placeholder="Enter your complete address"></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>State</label>
+                        <input type="text" id="state" placeholder="Enter state">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Itinerary Start Date *</label>
+                        <input type="date" id="itineraryStartDate" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Itinerary End Date *</label>
+                    <input type="date" id="itineraryEndDate" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Your Photo *</label>
+                    <div class="image-capture-section">
+                        <video id="video" autoplay playsinline style="display: none;"></video>
+                        <canvas id="canvas" style="display: none;"></canvas>
+                        <div id="imagePreview" class="image-preview"></div>
+                        <div class="image-controls">
+                            <button type="button" id="startCameraBtn" onclick="startCamera()">📷 Capture Photo</button>
+                            <button type="button" id="captureBtn" onclick="capturePhoto()" style="display: none;">📸 Take Picture</button>
+                            <button type="button" id="retakeBtn" onclick="retakePhoto()" style="display: none;">🔄 Retake</button>
+                            <input type="file" id="photoInput" accept="image/*" style="display: none;" onchange="handleFileSelect(event)">
+                            <button type="button" onclick="document.getElementById('photoInput').click()">📁 Upload Photo</button>
+                        </div>
+                        <small>Click "Capture Photo" to use camera or "Upload Photo" to select from device</small>
+                    </div>
+                </div>
+
+                <button type="submit" id="submitBtn">Complete Registration</button>
+            </form>
+
+            <div id="onboardingStatus" class="status"></div>
+        </div>
+
+        <!-- Success Screen -->
+        <div class="step" id="successScreen" style="display: none;">
+            <div class="step-header">
+                <span class="step-number">✓</span>
+                <h3>Registration Successful!</h3>
+            </div>
+
+            <div class="success-content">
+                <div class="important-box">
+                    <h4>🔑 Save Your Blockchain ID</h4>
+                    <p>You will need this to login. Copy it now!</p>
+                    <div class="blockchain-id-display">
+                        <code id="blockchainIdDisplay"></code>
+                        <button onclick="copyBlockchainId()">Copy</button>
+                    </div>
+                </div>
+
+                <div class="important-box" id="qrCodeBox" style="display: none;">
+                    <h4>📱 Your QR Code (One-Time Use)</h4>
+                    <p>Scan this QR code to login. <strong>It can only be used once!</strong></p>
+                    <div id="qrCodeDisplay" class="qr-code-display"></div>
+                    <p class="qr-expiry" id="qrExpiry"></p>
+                    <button onclick="copyQRUrl()" class="secondary">Copy QR URL</button>
+                    <button onclick="generateNewQR()" class="secondary">Generate New QR Code</button>
+                </div>
+
+                <div class="user-info">
+                    <h4>Your Details</h4>
+                    <div id="userDetails"></div>
+                </div>
+
+                <div class="actions">
+                    <button onclick="goToLogin()" class="primary">Test Login</button>
+                    <button onclick="window.location.href='qr-scanner.html'" class="primary">Scan QR Code</button>
+                    <button onclick="resetFlow()" class="secondary">Register Another</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Login Section -->
+        <div class="step" id="loginSection" style="display: none;">
+            <div class="step-header">
+                <span class="step-number">🔐</span>
+                <h3>Login with Blockchain ID</h3>
+            </div>
+
+            <form id="loginForm" onsubmit="loginWithBlockchainId(event)">
+                <div class="form-group">
+                    <label>Blockchain ID *</label>
+                    <input type="text" id="loginBlockchainId" required 
+                           placeholder="0x..." 
+                           pattern="^0x[a-fA-F0-9]{40}$">
+                    <small>Enter your Blockchain ID (Ethereum address format)</small>
+                </div>
+
+                <button type="submit" id="loginBtn">Login</button>
+            </form>
+
+            <div id="loginStatus" class="status"></div>
+            <div id="loginResult" class="result"></div>
+
+            <div class="actions">
+                <button onclick="resetFlow()" class="secondary">Back to Registration</button>
+            </div>
+        </div>
+
+        <!-- API Status -->
+        <div class="api-status">
+            <div id="apiStatus" class="status-indicator">
+                <span id="apiStatusText">Checking API connection...</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

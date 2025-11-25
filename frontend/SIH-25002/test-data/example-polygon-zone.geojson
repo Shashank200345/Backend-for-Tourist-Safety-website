@@ -1,0 +1,30 @@
+{
+  "type": "Feature",
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [[
+      [93.15, 26.56],
+      [93.20, 26.56],
+      [93.20, 26.59],
+      [93.15, 26.59],
+      [93.15, 26.56]
+    ]]
+  },
+  "properties": {
+    "name": "Protected Area Polygon",
+    "zone_type": "RESTRICTED",
+    "risk_level": "HIGH",
+    "state": "Assam",
+    "district": "Nagaon",
+    "description": "Protected wildlife area - Restricted entry",
+    "rules": [
+      "Permit required",
+      "No photography",
+      "Stay on designated paths"
+    ],
+    "notify_entry": true,
+    "notify_exit": true,
+    "notify_extended": true
+  }
+}
+

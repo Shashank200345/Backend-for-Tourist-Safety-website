@@ -1,0 +1,12 @@
+{
+  "type": "Feature",
+  "geometry": {
+    "type": "Point",
+    "coordinates": [92.7176, 23.7271]
+  },
+  "properties": {
+    "name": "Aizawl City Viewpoint",
+    "radius": 1800
+  }
+}
+

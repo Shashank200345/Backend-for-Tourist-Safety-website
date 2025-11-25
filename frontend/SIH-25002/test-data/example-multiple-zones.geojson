@@ -1,0 +1,95 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [91.866, 27.586]
+      },
+      "properties": {
+        "name": "Tawang Monastery Zone",
+        "radius": 1200,
+        "zone_type": "MONITORED",
+        "risk_level": "MEDIUM",
+        "state": "Arunachal Pradesh",
+        "district": "Tawang",
+        "description": "Ancient Buddhist monastery - Restricted entry after 7 PM",
+        "rules": [
+          "Respect religious guidelines",
+          "Restricted entry after 7 PM",
+          "Photography restrictions"
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [88.828, 27.3867]
+      },
+      "properties": {
+        "name": "Nathula Pass Border Zone",
+        "radius": 2000,
+        "zone_type": "RESTRICTED",
+        "risk_level": "HIGH",
+        "state": "Sikkim",
+        "district": "East Sikkim",
+        "description": "Indo-China border area - High security zone",
+        "rules": [
+          "Permit mandatory",
+          "Border area – follow army instructions",
+          "No photography"
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [91.878, 25.547]
+      },
+      "properties": {
+        "name": "Shillong Peak View Area",
+        "radius": 1500,
+        "zone_type": "SAFE",
+        "risk_level": "LOW",
+        "state": "Meghalaya",
+        "district": "East Khasi Hills",
+        "description": "Scenic viewpoint - Safe zone for tourists",
+        "rules": [
+          "Photography allowed",
+          "No littering",
+          "Follow safety guidelines"
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [93.80, 24.50],
+          [93.90, 24.50],
+          [93.90, 24.55],
+          [93.80, 24.55],
+          [93.80, 24.50]
+        ]]
+      },
+      "properties": {
+        "name": "Loktak Lake Protected Area",
+        "zone_type": "MONITORED",
+        "risk_level": "MEDIUM",
+        "state": "Manipur",
+        "district": "Bishnupur",
+        "description": "Eco-sensitive area - Floating village protection zone",
+        "rules": [
+          "Eco-sensitive area",
+          "Boat access only",
+          "No fishing in protected zones"
+        ]
+      }
+    }
+  ]
+}
+

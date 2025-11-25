@@ -1,0 +1,206 @@
+/* Import modern fonts - must be first */
+@import url('https://fonts.googleapis.com/css2?family=Raleway:ital,wght@0,100..900;1,100..900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-crypto-border;
+  }
+  
+  html {
+    @apply scroll-smooth;
+  }
+  
+  body {
+    @apply bg-crypto-bg font-sans antialiased;
+    color: #ffffff;
+    font-family: "Raleway", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 400;
+    font-style: normal;
+    background-image: 
+      radial-gradient(circle at 20% 80%, rgba(16, 185, 129, 0.08) 0%, transparent 60%),
+      radial-gradient(circle at 80% 20%, rgba(16, 185, 129, 0.04) 0%, transparent 60%),
+      linear-gradient(135deg, rgba(10, 10, 10, 0.95) 0%, rgba(26, 26, 26, 0.98) 50%, rgba(10, 10, 10, 0.95) 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
+    /* Optimized for smooth performance */
+    transform: translateZ(0);
+    will-change: transform;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    @apply w-2;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-crypto-surface;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-crypto-accent rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-crypto-accent-dark;
+  }
+}
+
+@layer components {
+  /* Crypto-style card component */
+  .crypto-card {
+    @apply bg-crypto-surface border border-crypto-border rounded-xl;
+    background: linear-gradient(135deg, rgba(42, 42, 42, 0.4) 0%, rgba(26, 26, 26, 0.5) 100%);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    box-shadow: 
+      0 4px 6px -1px rgba(0, 0, 0, 0.3),
+      0 2px 4px -1px rgba(0, 0, 0, 0.2),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+    /* Performance optimizations */
+    transform: translateZ(0);
+    will-change: transform, opacity;
+    transition: all 0.2s ease-out;
+  }
+  
+  .crypto-card:hover {
+    /* Hover effects removed */
+  }
+  
+  /* Crypto-style button */
+  .crypto-btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    box-shadow: 
+      0 4px 6px -1px rgba(16, 185, 129, 0.3),
+      0 2px 4px -1px rgba(16, 185, 129, 0.2);
+  }
+  
+  .crypto-btn:hover {
+    /* Hover effects removed */
+  }
+  
+  .crypto-btn:active {
+    /* Active effects removed */
+  }
+  
+  /* Crypto-style input */
+  .crypto-input {
+    @apply bg-crypto-surface border border-crypto-border rounded-lg px-4 py-2 text-crypto-text-primary placeholder-crypto-text-muted;
+    background: linear-gradient(135deg, rgba(26, 26, 26, 0.8) 0%, rgba(42, 42, 42, 0.6) 100%);
+  }
+  
+  .crypto-input:focus {
+    @apply outline-none;
+    /* Focus effects removed */
+  }
+  
+  /* Glow effects */
+  .glow-accent {
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+  }
+  
+  .glow-accent-lg {
+    box-shadow: 0 0 40px rgba(16, 185, 129, 0.2);
+  }
+  
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-crypto-accent via-emerald-400 to-teal-300 bg-clip-text text-transparent;
+  }
+  
+  /* Glass morphism effect */
+  .glass {
+    background: rgba(26, 26, 26, 0.3);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    /* Performance optimizations */
+    transform: translateZ(0);
+    will-change: transform;
+    transition: all 0.15s ease-out;
+  }
+  
+  /* Grid pattern */
+  .grid-pattern {
+    background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.3) 1px, transparent 0);
+    background-size: 20px 20px;
+  }
+  
+  /* Extra blurred background utility */
+  .bg-blur {
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    background: rgba(42, 42, 42, 0.3);
+    transform: translateZ(0);
+    will-change: transform;
+  }
+  
+  .bg-blur-heavy {
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    background: rgba(42, 42, 42, 0.2);
+    transform: translateZ(0);
+    will-change: transform;
+  }
+}
+
+@layer utilities {
+  /* Animation utilities */
+  .animate-glow {
+    animation: glow 2s ease-in-out infinite alternate;
+  }
+  
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  /* Text utilities - Fallback for older browsers */
+  .text-balance {
+    text-wrap: balance;
+    /* Fallback for older browsers */
+    word-wrap: break-word;
+  }
+  
+  /* Raleway font utility class */
+  .font-raleway {
+    font-family: "Raleway", sans-serif;
+    font-optical-sizing: auto;
+    font-style: normal;
+  }
+  
+  /* Force white text utility */
+  .text-white-force {
+    color: #ffffff !important;
+  }
+  
+  /* Override all text colors to white */
+  * {
+    color: #ffffff;
+  }
+  
+  /* Specific overrides for common elements */
+  h1, h2, h3, h4, h5, h6, p, span, div, button, a {
+    color: #ffffff;
+  }
+  
+  /* Performance optimization utilities */
+  .gpu-accelerated {
+    transform: translateZ(0);
+    will-change: transform;
+  }
+  
+  .smooth-transition {
+    transition: all 0.2s ease-out;
+  }
+  
+  .fast-transition {
+    transition: all 0.15s ease-out;
+  }
+}
+
+

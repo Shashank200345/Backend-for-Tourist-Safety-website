@@ -1,0 +1,25 @@
+{
+  "type": "Feature",
+  "geometry": {
+    "type": "Point",
+    "coordinates": [93.1711, 26.5775]
+  },
+  "properties": {
+    "name": "Kaziranga National Park",
+    "radius": 3000,
+    "zone_type": "SAFE",
+    "risk_level": "LOW",
+    "state": "Assam",
+    "district": "Nagaon",
+    "description": "World Heritage Site - Home to one-horned rhinoceros",
+    "rules": [
+      "Stay on safari path",
+      "Wildlife caution zone",
+      "No feeding animals"
+    ],
+    "notify_entry": true,
+    "notify_exit": true,
+    "notify_extended": false
+  }
+}
+

@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import authRoutes from './routes/auth.routes';
 import airportOnboardingRoutes from './routes/airportOnboarding.routes';
+import efirRoutes from './routes/efir.routes';
 import { startSessionExpirationJob } from './jobs/sessionExpirationJob';
 
 // Load environment variables
@@ -41,6 +42,7 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/airport', airportOnboardingRoutes);
+app.use('/api/efir', efirRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

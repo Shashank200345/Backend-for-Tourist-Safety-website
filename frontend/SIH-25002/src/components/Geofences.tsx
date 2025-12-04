@@ -1129,7 +1129,8 @@
 //   // inject component CSS on mount (outline/shadow + label hide rule via container class)
 //   useEffect(() => {
 //     const css = `
-//       .zone-label { background: rgba(0,0,0,0.65) !important; color: #fff !important; border: none !important; padding: 4px 8px !important; border-radius: 6px !important; font-size: 12px !important; line-height: 1 !important; white-space: nowrap !important; pointer-events: none !important; box-shadow: 0 2px 6px rgba(0,0,0,0.4); }
+//       .zone-label { background: rgba(0,0,0,0.65) !important; color: #fff !important; border: none !important; padding: 4px 8px !important; border-radius: 6px !important; font-size: 12px !important; line-height: 1 !important; white-space: nowrap !important; pointer-events: auto !important; cursor: pointer !important; transition: background 0.2s !important; box-shadow: 0 2px 6px rgba(0,0,0,0.4); }
+//       .zone-label:hover { background: rgba(0,0,0,0.85) !important; }
 //       .geofence-circle { filter: drop-shadow(0 6px 10px rgba(0,0,0,0.35)); }
 //       .geofence-circle .leaflet-interactive { stroke-linejoin: round; }
 //       .hide-zone-labels .zone-label { display: none !important; }
@@ -3401,6 +3402,9 @@ export const Geofences: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   
+  // State for map info box
+  const [mapInfoBox, setMapInfoBox] = useState<{ zone: any; position: { x: number; y: number } } | null>(null);
+  
   // Notifications for on-screen display
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
@@ -3514,6 +3518,11 @@ export const Geofences: React.FC = () => {
       polygon_coordinates: (zone as any).polygon_coordinates || null,
     };
   };
+
+  // Debug: Log when showCreateForm changes
+  useEffect(() => {
+    console.log('showCreateForm state changed:', showCreateForm);
+  }, [showCreateForm]);
 
   // Load zones from Supabase on mount and subscribe to real-time changes
   // NOTE: Make sure Realtime is enabled for 'zones' table in Supabase Dashboard
@@ -3960,7 +3969,8 @@ export const Geofences: React.FC = () => {
   // inject component CSS on mount (outline/shadow + label hide rule via container class)
   useEffect(() => {
     const css = `
-      .zone-label { background: rgba(0,0,0,0.65) !important; color: #fff !important; border: none !important; padding: 4px 8px !important; border-radius: 6px !important; font-size: 12px !important; line-height: 1 !important; white-space: nowrap !important; pointer-events: none !important; box-shadow: 0 2px 6px rgba(0,0,0,0.4); }
+      .zone-label { background: rgba(0,0,0,0.65) !important; color: #fff !important; border: none !important; padding: 4px 8px !important; border-radius: 6px !important; font-size: 12px !important; line-height: 1 !important; white-space: nowrap !important; pointer-events: auto !important; cursor: pointer !important; transition: background 0.2s !important; box-shadow: 0 2px 6px rgba(0,0,0,0.4); }
+      .zone-label:hover { background: rgba(0,0,0,0.85) !important; }
       .geofence-circle { filter: drop-shadow(0 6px 10px rgba(0,0,0,0.35)); }
       .geofence-circle .leaflet-interactive { stroke-linejoin: round; }
       .hide-zone-labels .zone-label { display: none !important; }
@@ -4011,8 +4021,13 @@ export const Geofences: React.FC = () => {
     // draw initial geofences
     geofences.forEach((zone) => drawZone(zone));
 
-    // map click handler used for create mode
+    // map click handler used for create mode and closing info box
     map.on("click", (e: L.LeafletMouseEvent) => {
+      // Close info box when clicking on map (but not on zones)
+      if (mapInfoBox) {
+        setMapInfoBox(null);
+      }
+      
       if (!showCreateForm) return; // only place temp center when modal open
 
       const { latlng } = e;
@@ -4159,16 +4174,29 @@ export const Geofences: React.FC = () => {
         centroid.geometry.coordinates[0]
       );
 
-      // Add a permanent tooltip label
+      // Add a permanent tooltip label with click handler
       const tooltip = L.tooltip({
         permanent: true,
         direction: "center",
-        className: "zone-label",
+        className: "zone-label cursor-pointer hover:bg-opacity-80",
       })
-        .setContent(zone.name)
+        .setContent(`<span style="cursor: pointer; user-select: none;">${zone.name}</span>`)
         .setLatLng(tooltipLatLng);
 
       tooltip.addTo(mapRef.current!);
+
+      // Add click handler to tooltip
+      tooltip.getElement()?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const point = mapRef.current!.latLngToContainerPoint(tooltipLatLng);
+        setMapInfoBox({ zone, position: { x: point.x, y: point.y } });
+      });
+
+      // Add click handler to polygon
+      geoJsonLayer.on('click', (e: L.LeafletMouseEvent) => {
+        const point = mapRef.current!.latLngToContainerPoint(e.latlng);
+        setMapInfoBox({ zone, position: { x: point.x, y: point.y } });
+      });
 
       // Store polygon layer reference
       layersRef.current[id] = { polygon: geoJsonLayer, tooltip };
@@ -4186,16 +4214,29 @@ export const Geofences: React.FC = () => {
 
       tooltipLatLng = L.latLng(coordinates.lat, coordinates.lng);
 
-      // Add a permanent tooltip label
+      // Add a permanent tooltip label with click handler
       const tooltip = L.tooltip({
         permanent: true,
         direction: "center",
-        className: "zone-label",
+        className: "zone-label cursor-pointer hover:bg-opacity-80",
       })
-        .setContent(zone.name)
+        .setContent(`<span style="cursor: pointer; user-select: none;">${zone.name}</span>`)
         .setLatLng(tooltipLatLng);
 
       tooltip.addTo(mapRef.current!);
+
+      // Add click handler to tooltip
+      tooltip.getElement()?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const point = mapRef.current!.latLngToContainerPoint(tooltipLatLng);
+        setMapInfoBox({ zone, position: { x: point.x, y: point.y } });
+      });
+
+      // Add click handler to circle
+      circle.on('click', (e: L.LeafletMouseEvent) => {
+        const point = mapRef.current!.latLngToContainerPoint(e.latlng);
+        setMapInfoBox({ zone, position: { x: point.x, y: point.y } });
+      });
 
       // Store circle layer reference
       layersRef.current[id] = { circle, tooltip };
@@ -4582,7 +4623,7 @@ export const Geofences: React.FC = () => {
     e.preventDefault();
     const form = e.currentTarget;
     const formData = new FormData(form);
-    const name = String(formData.get("name") || "New Zone");
+    const name = String(formData.get("name") || "New Zone").trim();
     const lat =
       Number(formData.get("lat")) || (tempCenter ? tempCenter.lat : 0);
     const lng =
@@ -4592,50 +4633,72 @@ export const Geofences: React.FC = () => {
       (tempCircleRef.current ? tempCircleRef.current.getRadius() : 200);
     const type = String(formData.get("type") || "MONITORED") as Zone['zone_type'];
     const risk = String(formData.get("risk") || "MEDIUM") as Zone['risk_level'];
-    const description = String(formData.get("description") || "");
+    const description = String(formData.get("description") || "").trim();
+    const state = String(formData.get("state") || "").trim();
+    const district = String(formData.get("district") || "").trim();
+    const rulesText = String(formData.get("rules") || "").trim();
+    
+    // Parse rules from textarea (one per line)
+    const rules = rulesText
+      ? rulesText.split('\n').map(r => r.trim()).filter(r => r.length > 0)
+      : [];
 
+    // Get user if available (optional - not required)
     const user = await getCurrentUser();
-    if (!user) {
-      alert("You must be logged in to create zones.");
+
+    // Validate required fields
+    if (!name || name.trim() === '') {
+      alert("Please enter a zone name.");
+      return;
+    }
+    if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
+      alert("Please enter valid coordinates.");
+      return;
+    }
+    if (!radius || radius <= 0) {
+      alert("Please enter a valid radius (greater than 0).");
       return;
     }
 
-    // Create GeoJSON geometry for circle zone
-    const geometry: GeoJSON.Geometry = {
-      type: "Point",
-      coordinates: [lng, lat],
-      properties: { radius },
-    };
-
     try {
-      // Insert zone into Supabase
+      // Insert zone into Supabase according to the schema
       const { data: newZone, error: insertError } = await supabase
         .from('zones')
         .insert({
-          name,
+          name: name.trim(),
           description: description || null,
           zone_type: type,
           risk_level: risk,
-          geometry: geometry as any,
+          shape_type: 'circle', // Circle zone
+          latitude: lat,
+          longitude: lng,
+          radius_meters: radius,
+          polygon_coordinates: null, // Not used for circle zones
           status: 'ACTIVE',
           notifications: {
             entry: true,
             exit: true,
             extended_stay: false,
           },
-          rules: [],
+          rules: rules,
           region: 'Northeast India',
-          created_by: user.id,
+          state: state || null,
+          district: district || null,
+          created_by: user?.id || null,
         })
         .select()
         .single();
 
       if (insertError) {
+        console.error("Supabase insert error:", insertError);
         throw insertError;
       }
 
-      // Reload zones to get updated data from database
-      await loadZones();
+      console.info("✅ Zone created successfully in Supabase:", newZone);
+
+      // Real-time subscription will automatically update the UI
+      // But we can also reload as a fallback to ensure consistency
+      await loadZones(true); // Silent reload
 
       setShowCreateForm(false);
 
@@ -4653,7 +4716,13 @@ export const Geofences: React.FC = () => {
       // Pan map to new zone
       if (mapRef.current) mapRef.current.panTo([lat, lng]);
 
-      console.info("✅ Zone created successfully in Supabase!");
+      // Show success notification
+      showNotification({
+        type: 'ENTER',
+        zoneName: name,
+        zoneType: type,
+        message: `Zone "${name}" created successfully!`,
+      });
     } catch (err: any) {
       console.error("Error creating zone:", err);
       alert(`Failed to create zone: ${err.message}`);
@@ -4947,7 +5016,13 @@ export const Geofences: React.FC = () => {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => setShowCreateForm(true)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Create Geofence button clicked');
+                setShowCreateForm(true);
+              }}
+              type="button"
               className="crypto-btn flex items-center space-x-2 text-sm px-4 py-2"
             >
               <Plus className="h-4 w-4" />
@@ -4957,12 +5032,166 @@ export const Geofences: React.FC = () => {
         </div>
 
         {/* Full Screen Map Container */}
-        <div className="w-full h-full rounded-xl overflow-hidden border border-crypto-border/30 shadow-2xl relative bg-crypto-surface">
+        <div 
+          className="w-full h-full rounded-xl overflow-hidden border border-crypto-border/30 shadow-2xl relative bg-crypto-surface"
+          onClick={() => {
+            // Close info box when clicking on map container background
+            if (mapInfoBox) {
+              setMapInfoBox(null);
+            }
+          }}
+        >
           <div
             ref={containerRef}
             className="absolute inset-0 w-full h-full"
             style={{ height: "100%" }}
           />
+          
+          {/* Floating Zone Info Box */}
+          <AnimatePresence>
+            {mapInfoBox && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8, y: -20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.8, y: -20 }}
+                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                className="absolute z-[10001] pointer-events-auto"
+                style={{
+                  left: `${mapInfoBox.position.x}px`,
+                  top: `${mapInfoBox.position.y}px`,
+                  transform: 'translate(-50%, -100%)',
+                  marginTop: '-10px',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="bg-slate-800 rounded-xl shadow-2xl border border-slate-700 min-w-[320px] max-w-[400px] p-4 relative">
+                  {/* Close Button */}
+                  <button
+                    onClick={() => setMapInfoBox(null)}
+                    className="absolute top-2 right-2 text-slate-400 hover:text-white transition-colors z-10"
+                    type="button"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                  
+                  {/* Zone Header */}
+                  <div className="pr-6 mb-3">
+                    <h3 className="text-lg font-semibold text-white mb-1">
+                      {mapInfoBox.zone.name}
+                    </h3>
+                    {mapInfoBox.zone.description && (
+                      <p className="text-sm text-slate-400 line-clamp-2">
+                        {mapInfoBox.zone.description}
+                      </p>
+                    )}
+                  </div>
+                  
+                  {/* Zone Type and Risk Level */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getZoneTypeColor(mapInfoBox.zone.type || mapInfoBox.zone.zone_type)}`}>
+                      {mapInfoBox.zone.type || mapInfoBox.zone.zone_type}
+                    </span>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRiskLevelColor(mapInfoBox.zone.riskLevel || mapInfoBox.zone.risk_level)}`}>
+                      {mapInfoBox.zone.riskLevel || mapInfoBox.zone.risk_level}
+                    </span>
+                  </div>
+                  
+                  {/* Zone Details Grid */}
+                  <div className="grid grid-cols-2 gap-3 text-sm mb-3">
+                    <div>
+                      <span className="text-slate-400">Radius:</span>
+                      <span className="text-white ml-2 font-medium">
+                        {mapInfoBox.zone.radius || mapInfoBox.zone.radius_meters || 0}m
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Status:</span>
+                      <span className={`ml-2 font-medium ${
+                        mapInfoBox.zone.status === 'ACTIVE' ? 'text-green-400' : 
+                        mapInfoBox.zone.status === 'INACTIVE' ? 'text-red-400' : 
+                        'text-yellow-400'
+                      }`}>
+                        {mapInfoBox.zone.status}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Visitors:</span>
+                      <span className="text-white ml-2 font-medium">
+                        {mapInfoBox.zone.activeVisitors || mapInfoBox.zone.active_visitors || 0}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Alerts:</span>
+                      <span className="text-white ml-2 font-medium">
+                        {mapInfoBox.zone.alerts || mapInfoBox.zone.total_alerts || 0}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Location Info */}
+                  {(mapInfoBox.zone.state || mapInfoBox.zone.district) && (
+                    <div className="text-sm text-slate-400 mb-3">
+                      <MapPin className="h-3 w-3 inline mr-1" />
+                      {[mapInfoBox.zone.district, mapInfoBox.zone.state].filter(Boolean).join(', ')}
+                    </div>
+                  )}
+                  
+                  {/* Rules */}
+                  {mapInfoBox.zone.rules && Array.isArray(mapInfoBox.zone.rules) && mapInfoBox.zone.rules.length > 0 && (
+                    <div className="mb-3">
+                      <p className="text-xs text-slate-400 mb-1">Rules:</p>
+                      <ul className="text-xs text-slate-300 space-y-1">
+                        {mapInfoBox.zone.rules.slice(0, 3).map((rule: string, idx: number) => (
+                          <li key={idx} className="flex items-start">
+                            <span className="text-teal-400 mr-2">•</span>
+                            <span>{rule}</span>
+                          </li>
+                        ))}
+                        {mapInfoBox.zone.rules.length > 3 && (
+                          <li className="text-slate-500 italic">
+                            +{mapInfoBox.zone.rules.length - 3} more
+                          </li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
+                  
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 pt-2 border-t border-slate-700">
+                    <button
+                      onClick={() => {
+                        handleEditZone(mapInfoBox.zone);
+                        setMapInfoBox(null);
+                      }}
+                      className="flex-1 px-3 py-1.5 bg-teal-500/20 hover:bg-teal-500/30 text-teal-400 rounded-lg text-sm font-medium transition-colors"
+                      type="button"
+                    >
+                      <Edit className="h-3 w-3 inline mr-1" />
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm(`Delete "${mapInfoBox.zone.name}"?`)) {
+                          handleDeleteZone(mapInfoBox.zone.id, mapInfoBox.zone.name);
+                          setMapInfoBox(null);
+                        }
+                      }}
+                      className="flex-1 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm font-medium transition-colors"
+                      type="button"
+                    >
+                      <Trash2 className="h-3 w-3 inline mr-1" />
+                      Delete
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Arrow pointing down */}
+                <div className="absolute left-1/2 -bottom-1 transform -translate-x-1/2">
+                  <div className="w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-slate-800"></div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
@@ -5241,7 +5470,7 @@ export const Geofences: React.FC = () => {
                   <h3 className="text-lg font-semibold mb-4">Statistics</h3>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-400">Active Visitors:</span>
+                      <span className="text-slate-400">Active Visitors:(Approox)</span>
                       <span className="font-medium">
                         {selectedZone.activeVisitors}
                       </span>
@@ -5332,9 +5561,53 @@ export const Geofences: React.FC = () => {
 
       {/* Create Geofence Modal */}
       {showCreateForm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 rounded-xl w-full max-w-md p-6">
-            <h3 className="text-xl font-semibold mb-4">Create Geofence</h3>
+        <div 
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[10000] p-4"
+          onClick={(e) => {
+            // Close modal when clicking backdrop (only if clicking the backdrop itself, not children)
+            if (e.target === e.currentTarget) {
+              e.stopPropagation();
+              setShowCreateForm(false);
+              if (tempCircleRef.current) {
+                tempCircleRef.current.remove();
+                tempCircleRef.current = null;
+              }
+              if (tempHandleRef.current) {
+                tempHandleRef.current.remove();
+                tempHandleRef.current = null;
+              }
+              setTempCenter(null);
+            }
+          }}
+        >
+          <div 
+            className="bg-slate-800 rounded-xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6 relative shadow-2xl border border-slate-700"
+            onClick={(e) => {
+              // Prevent clicks inside modal from closing it
+              e.stopPropagation();
+            }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-white">Create Geofence</h3>
+              <button
+                onClick={() => {
+                  setShowCreateForm(false);
+                  if (tempCircleRef.current) {
+                    tempCircleRef.current.remove();
+                    tempCircleRef.current = null;
+                  }
+                  if (tempHandleRef.current) {
+                    tempHandleRef.current.remove();
+                    tempHandleRef.current = null;
+                  }
+                  setTempCenter(null);
+                }}
+                className="text-slate-400 hover:text-white transition-colors"
+                type="button"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
             <p className="text-sm text-slate-400 mb-2">
               Click a point on the map to set the center (preview will appear).
               Or enter coordinates manually. Drag the handle to resize the
@@ -5342,63 +5615,122 @@ export const Geofences: React.FC = () => {
             </p>
             <form onSubmit={handleCreateZone} className="space-y-3">
               <div>
-                <label className="block text-sm text-slate-400">Name</label>
+                <label className="block text-sm text-slate-400">Name *</label>
                 <input
                   name="name"
-                  className="w-full bg-slate-900/40 p-2 rounded-md mt-1"
+                  required
+                  className="w-full bg-slate-900/40 p-2 rounded-md mt-1 text-white"
                   defaultValue="New Zone"
+                  placeholder="Enter zone name"
                 />
               </div>
+              
+              <div>
+                <label className="block text-sm text-slate-400">Description</label>
+                <textarea
+                  name="description"
+                  rows={2}
+                  className="w-full bg-slate-900/40 p-2 rounded-md mt-1 text-white"
+                  placeholder="Enter zone description (optional)"
+                />
+              </div>
+              
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-sm text-slate-400">
-                    Latitude
+                    Latitude *
                   </label>
                   <input
                     name="lat"
                     type="number"
                     step="any"
-                    className="w-full bg-slate-900/40 p-2 rounded-md mt-1"
+                    required
+                    className="w-full bg-slate-900/40 p-2 rounded-md mt-1 text-white"
                     defaultValue={tempCenter ? tempCenter.lat : 26.5775}
                   />
                 </div>
                 <div>
                   <label className="block text-sm text-slate-400">
-                    Longitude
+                    Longitude *
                   </label>
                   <input
                     name="lng"
                     type="number"
                     step="any"
-                    className="w-full bg-slate-900/40 p-2 rounded-md mt-1"
+                    required
+                    className="w-full bg-slate-900/40 p-2 rounded-md mt-1 text-white"
                     defaultValue={tempCenter ? tempCenter.lng : 93.1711}
                   />
                 </div>
               </div>
+              
               <div>
                 <label className="block text-sm text-slate-400">
-                  Radius (meters)
+                  Radius (meters) *
                 </label>
                 <input
                   name="radius"
                   type="number"
-                  className="w-full bg-slate-900/40 p-2 rounded-md mt-1"
+                  min="1"
+                  required
+                  className="w-full bg-slate-900/40 p-2 rounded-md mt-1 text-white"
                   defaultValue={200}
                 />
               </div>
-              <div className="flex items-center space-x-2">
-                <select name="type" className="bg-slate-900/40 p-2 rounded-md">
-                  <option>MONITORED</option>
-                  <option>SAFE</option>
-                  <option>RESTRICTED</option>
-                  <option>EMERGENCY</option>
-                </select>
-                <select name="risk" className="bg-slate-900/40 p-2 rounded-md">
-                  <option>LOW</option>
-                  <option>MEDIUM</option>
-                  <option>HIGH</option>
-                  <option>CRITICAL</option>
-                </select>
+              
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Zone Type *</label>
+                  <select name="type" required defaultValue="MONITORED" className="w-full bg-slate-900/40 p-2 rounded-md text-white">
+                    <option value="MONITORED">MONITORED</option>
+                    <option value="SAFE">SAFE</option>
+                    <option value="RESTRICTED">RESTRICTED</option>
+                    <option value="EMERGENCY">EMERGENCY</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Risk Level *</label>
+                  <select name="risk" required defaultValue="MEDIUM" className="w-full bg-slate-900/40 p-2 rounded-md text-white">
+                    <option value="LOW">LOW</option>
+                    <option value="MEDIUM">MEDIUM</option>
+                    <option value="HIGH">HIGH</option>
+                    <option value="CRITICAL">CRITICAL</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-sm text-slate-400">State</label>
+                  <input
+                    name="state"
+                    type="text"
+                    className="w-full bg-slate-900/40 p-2 rounded-md mt-1 text-white"
+                    placeholder="e.g., Assam"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-400">District</label>
+                  <input
+                    name="district"
+                    type="text"
+                    className="w-full bg-slate-900/40 p-2 rounded-md mt-1 text-white"
+                    placeholder="e.g., Guwahati"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm text-slate-400">Rules (one per line)</label>
+                <textarea
+                  name="rules"
+                  rows={3}
+                  className="w-full bg-slate-900/40 p-2 rounded-md mt-1 text-white"
+                  placeholder="Enter rules, one per line (optional)"
+                />
+              </div>
+              
+              <div className="flex items-center justify-between">
                 <button
                   type="button"
                   onClick={() => {
@@ -5418,13 +5750,13 @@ export const Geofences: React.FC = () => {
                       alert("Click on the map to set center first.");
                     }
                   }}
-                  className="ml-auto px-3 py-1 rounded-md bg-slate-700"
+                  className="px-3 py-1 rounded-md bg-slate-700 text-white text-sm"
                 >
                   Use Map Center
                 </button>
               </div>
 
-              <div className="flex justify-end space-x-2">
+              <div className="flex justify-end space-x-2 pt-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -5439,15 +5771,15 @@ export const Geofences: React.FC = () => {
                     }
                     setTempCenter(null);
                   }}
-                  className="px-4 py-2 rounded-md bg-slate-700"
+                  className="px-4 py-2 rounded-md bg-slate-700 text-white"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-md bg-teal-500"
+                  className="px-4 py-2 rounded-md bg-teal-500 text-white hover:bg-teal-600"
                 >
-                  Create
+                  Create Geofence
                 </button>
               </div>
             </form>

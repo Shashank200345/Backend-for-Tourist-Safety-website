@@ -1,9 +1,14 @@
 import React, { useState } from 'react';
-import { FileText, Upload, Clock, CheckCircle, AlertCircle, User, MapPin, Calendar } from 'lucide-react';
+import { FileText, Upload, Clock, CheckCircle, AlertCircle, User, MapPin, Calendar, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
+
+const API_BASE_URL = import.meta.env.VITE_BACKEND_API?.replace('/airport', '') || 'http://localhost:3001/api';
 
 export const EFIR: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     touristId: '',
     incidentType: '',
@@ -68,19 +73,74 @@ export const EFIR: React.FC = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle E-FIR submission
-    setShowForm(false);
-    setFormData({
-      touristId: '',
-      incidentType: '',
-      location: '',
-      description: '',
-      dateTime: '',
-      witnesses: '',
-      evidence: ''
-    });
+    setIsLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/efir/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          touristId: formData.touristId,
+          incidentType: formData.incidentType,
+          location: formData.location,
+          description: formData.description,
+          dateTime: formData.dateTime,
+          witnesses: formData.witnesses || '',
+          evidence: formData.evidence || ''
+        }),
+      });
+
+      if (!response.ok) {
+        // Try to parse error message from JSON response
+        const errorData = await response.json().catch(() => ({ error: 'Failed to generate EFIR' }));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      // Check if response is PDF
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/pdf')) {
+        // Create blob and download PDF
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `EFIR-${Date.now()}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        setSuccess('E-FIR generated and downloaded successfully!');
+        setShowForm(false);
+        setFormData({
+          touristId: '',
+          incidentType: '',
+          location: '',
+          description: '',
+          dateTime: '',
+          witnesses: '',
+          evidence: ''
+        });
+
+        // Clear success message after 5 seconds
+        setTimeout(() => setSuccess(null), 5000);
+      } else {
+        throw new Error('Unexpected response format. Expected PDF file.');
+      }
+    } catch (err: any) {
+      console.error('Error generating EFIR:', err);
+      setError(err.message || 'Failed to generate E-FIR. Please try again.');
+      // Clear error message after 5 seconds
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -218,6 +278,20 @@ export const EFIR: React.FC = () => {
               </div>
             </div>
             
+            {/* Error/Success Messages */}
+            {error && (
+              <div className="mx-6 mt-4 p-4 bg-red-600/20 border border-red-500/50 rounded-lg flex items-center space-x-2">
+                <AlertCircle className="h-5 w-5 text-red-400" />
+                <p className="text-red-400 text-sm">{error}</p>
+              </div>
+            )}
+            {success && (
+              <div className="mx-6 mt-4 p-4 bg-green-600/20 border border-green-500/50 rounded-lg flex items-center space-x-2">
+                <CheckCircle className="h-5 w-5 text-green-400" />
+                <p className="text-green-400 text-sm">{success}</p>
+              </div>
+            )}
+            
             <form onSubmit={handleSubmit} className="p-6 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -347,11 +421,19 @@ export const EFIR: React.FC = () => {
                 </motion.button>
                 <motion.button
                   type="submit"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="flex-1 crypto-btn py-3 px-4 rounded-lg font-medium"
+                  disabled={isLoading}
+                  whileHover={{ scale: isLoading ? 1 : 1.02 }}
+                  whileTap={{ scale: isLoading ? 1 : 0.98 }}
+                  className="flex-1 crypto-btn py-3 px-4 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                 >
-                  Create E-FIR
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <span>Generating E-FIR...</span>
+                    </>
+                  ) : (
+                    <span>Create E-FIR</span>
+                  )}
                 </motion.button>
               </div>
             </form>

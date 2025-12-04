@@ -39,7 +39,12 @@ export interface Zone {
   description: string | null;
   zone_type: 'SAFE' | 'MONITORED' | 'RESTRICTED' | 'EMERGENCY';
   risk_level: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-  geometry: GeoJSON.Geometry;
+  shape_type: 'circle' | 'polygon';
+  latitude: number | null;
+  longitude: number | null;
+  radius_meters: number | null;
+  polygon_coordinates: any | null; // JSONB for polygon coordinates
+  geometry?: GeoJSON.Geometry; // Optional - computed from lat/lng or polygon_coordinates
   status: 'ACTIVE' | 'INACTIVE' | 'STANDBY';
   notifications: {
     entry: boolean;
@@ -50,12 +55,12 @@ export interface Zone {
   active_visitors: number;
   total_visits: number;
   total_alerts: number;
-  region: string;
+  region: string | null;
   state: string | null;
   district: string | null;
-  center_lat: number | null;
-  center_lng: number | null;
-  radius_meters: number | null;
+  // Backward compatibility fields
+  center_lat?: number | null;
+  center_lng?: number | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

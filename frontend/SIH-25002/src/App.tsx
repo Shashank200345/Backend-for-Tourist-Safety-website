@@ -2,13 +2,12 @@ import { useState } from 'react';
 import { Header } from './components/Header';
 import { Dashboard } from './components/Dashboard';
 import { TouristIDs } from './components/TouristIDs';
-import Heatmap from './components/Heatmap';
+import  Heatmap  from './components/Heatmap';
 import { Alerts } from './components/Alerts';
 import { EFIR } from './components/EFIR';
 import { Geofences } from './components/Geofences';
 import { IncidentManagement } from './components/IncidentManagement';
-import { TouristRegistration } from './components/TouristRegistration';
-import type { TouristData } from './components/AuthPage';
+import { AuthPage, type TouristData } from './components/AuthPage';
 
 // 🎬 Animations
 import { motion, AnimatePresence } from 'framer-motion';
@@ -21,7 +20,7 @@ export type ActiveSection =
   | 'efir'
   | 'geofences'
   | 'incidents'
-  | 'registration';
+  | 'register';
 
 function App() {
   const [activeSection, setActiveSection] = useState<ActiveSection>('dashboard');
@@ -46,10 +45,10 @@ function App() {
         return <EFIR />;
       case 'geofences':
         return <Geofences />;
-      case 'registration':
-        return <TouristRegistration />;
       case 'incidents':
         return <IncidentManagement />;
+      case 'register':
+        return <AuthPage />;
       default:
         return <Dashboard />;
     }
@@ -93,9 +92,9 @@ function App() {
       </motion.div>
 
       {/* Main Content with Page Transition */}
-      <main className={`relative z-10 ${activeSection === 'heatmap' ? 'p-0' : 'p-6 lg:p-8 max-w-7xl mx-auto w-full'}`}>
+      <main className={`relative z-10 ${activeSection === 'heatmap' || activeSection === 'register' ? 'p-0' : 'p-6 lg:p-8 max-w-7xl mx-auto w-full'}`}>
         <AnimatePresence mode="wait">
-          {activeSection === 'heatmap' ? (
+          {activeSection === 'heatmap' || activeSection === 'register' ? (
             <motion.div
               key={activeSection}
               initial={{ opacity: 0 }}

@@ -94,12 +94,12 @@ export const Header: React.FC<HeaderProps> = ({ activeSection, setActiveSection,
   const navItems = [
     { id: 'dashboard' as ActiveSection, label: 'Dashboard' },
     { id: 'tourist-ids' as ActiveSection, label: 'Tourist IDs' },
+    { id: 'register' as ActiveSection, label: 'Register' },
     { id: 'heatmap' as ActiveSection, label: 'Heatmap' },
     { id: 'alerts' as ActiveSection, label: 'Alerts' },
     { id: 'incidents' as ActiveSection, label: 'Incidents' },
     { id: 'efir' as ActiveSection, label: 'E-FIR' },
     { id: 'geofences' as ActiveSection, label: 'Geofences' },
-    { id: 'registration' as ActiveSection, label: 'Register Tourist' },
   ];
 
   return (
@@ -127,7 +127,7 @@ export const Header: React.FC<HeaderProps> = ({ activeSection, setActiveSection,
               transition={{ delay: 0.3, duration: 0.8 }}
               className="text-xl font-bold gradient-text tracking-wide"
             >
-              Smart Tourist Safety
+              Safe Yatra
             </motion.h1>
           </div>
         </div>

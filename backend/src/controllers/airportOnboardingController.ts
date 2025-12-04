@@ -31,6 +31,7 @@ interface AirportOnboardingRequest extends Request {
     name: string;
     email: string;
     aadhaarNumber: string;
+    contactNumber: string;
     dob: string;
     gender: string;
     address: string;
@@ -109,6 +110,7 @@ export const completeAirportOnboarding = [
         name,
         email,
         aadhaarNumber,
+        contactNumber,
         dob,
         gender,
         address,
@@ -119,9 +121,9 @@ export const completeAirportOnboarding = [
       } = req.body;
 
       // Validate required fields
-      if (!name || !email || !aadhaarNumber || !dob || !itineraryEndDate) {
+      if (!name || !email || !aadhaarNumber || !contactNumber || !dob || !itineraryEndDate) {
         res.status(400).json({
-          error: 'Missing required fields: name, email, aadhaarNumber, dob, and itineraryEndDate are required',
+          error: 'Missing required fields: name, email, aadhaarNumber, contactNumber, dob, and itineraryEndDate are required',
         });
         return;
       }
@@ -139,6 +141,16 @@ export const completeAirportOnboarding = [
       if (!emailRegex.test(email)) {
         res.status(400).json({
           error: 'Invalid email format',
+        });
+        return;
+      }
+
+      // Validate contact number format (10-digit Indian mobile number)
+      const contactNumberRegex = /^[6-9]\d{9}$/;
+      const cleanedContactNumber = contactNumber.replace(/\s+/g, '').replace(/[-\s()]/g, '');
+      if (!contactNumberRegex.test(cleanedContactNumber)) {
+        res.status(400).json({
+          error: 'Invalid contact number format. Must be a valid 10-digit Indian mobile number (starting with 6-9).',
         });
         return;
       }
@@ -206,6 +218,7 @@ export const completeAirportOnboarding = [
             tourist_id: touristId,
             email,
             name,
+            contact_number: cleanedContactNumber,
             document_type: 'aadhaar',
             document_number: aadhaarNumber,
             document_hash: documentHash,
@@ -231,6 +244,7 @@ export const completeAirportOnboarding = [
         const updateData: any = {
           name,
           email,
+          contact_number: cleanedContactNumber,
           country: country || existingUser.country,
           state: state || existingUser.state,
           itinerary_start_date: itineraryStartDate

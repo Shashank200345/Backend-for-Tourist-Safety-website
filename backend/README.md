@@ -65,6 +65,11 @@ DIGILOCKER_REDIRECT_URI=http://localhost:5173/auth/callback
 # For production, use your deployed backend URL:
 # QR_VERIFICATION_URL=https://your-backend.com/api/airport/verify-qr
 QR_VERIFICATION_URL=http://localhost:3001/api/airport/verify-qr
+
+# Google Gemini API Configuration (for E-FIR generation)
+GOOGLE_API_KEY=your-google-gemini-api-key
+# Optional: Specify model (default: gemini-1.5-flash)
+# GEMINI_MODEL=gemini-1.5-flash
 ```
 
 **Required variables:**
@@ -73,6 +78,7 @@ QR_VERIFICATION_URL=http://localhost:3001/api/airport/verify-qr
 - `REDIS_URL` - Redis connection string (default: `redis://localhost:6379`)
 - `JWT_SECRET` - Secret key for JWT tokens (use a strong random string)
 - `AIRPORT_CODE` - Airport code (e.g., "DEL" for Delhi)
+- `GOOGLE_API_KEY` - Google Gemini API key for E-FIR generation (get from [Google AI Studio](https://makersuite.google.com/app/apikey))
 
 **Optional variables (for blockchain features):**
 - `BLOCKCHAIN_RPC_URL` - Blockchain RPC endpoint (local Hardhat or testnet)

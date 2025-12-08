@@ -6,7 +6,9 @@ import rateLimit from 'express-rate-limit';
 import authRoutes from './routes/auth.routes';
 import airportOnboardingRoutes from './routes/airportOnboarding.routes';
 import efirRoutes from './routes/efir.routes';
+import smsRoutes from './routes/sms.routes';
 import { startSessionExpirationJob } from './jobs/sessionExpirationJob';
+import { startGeofenceSMSWatcher } from './services/geofenceSMSWatcher';
 
 // Load environment variables
 dotenv.config();
@@ -43,6 +45,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/airport', airportOnboardingRoutes);
 app.use('/api/efir', efirRoutes);
+app.use('/api/sms', smsRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -59,6 +62,9 @@ app.listen(PORT, () => {
   
   // Start background jobs
   startSessionExpirationJob();
+  
+  // Start geofence SMS watcher
+  startGeofenceSMSWatcher();
 });
 
 export default app;

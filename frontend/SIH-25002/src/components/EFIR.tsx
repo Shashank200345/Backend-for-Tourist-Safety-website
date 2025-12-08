@@ -1,86 +1,47 @@
 import React, { useState } from 'react';
-import { FileText, Upload, Clock, CheckCircle, AlertCircle, User, MapPin, Calendar, Loader2 } from 'lucide-react';
+import { FileText, User, MapPin, Calendar, AlertCircle, Loader2, CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-const API_BASE_URL = import.meta.env.VITE_BACKEND_API?.replace('/airport', '') || 'http://localhost:3001/api';
+// Get API base URL
+const getApiBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_BACKEND_API;
+  if (envUrl) {
+    let url = envUrl.replace(/\/airport\/?$/, '');
+    if (!url.endsWith('/api')) {
+      url = url.replace(/\/api\/?$/, '') + '/api';
+    }
+    return url;
+  }
+  return 'http://localhost:3001/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export const EFIR: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  
   const [formData, setFormData] = useState({
     touristId: '',
     incidentType: '',
     location: '',
     description: '',
     dateTime: '',
-    witnesses: '',
-    evidence: ''
+    witnesses: ''
   });
-
-  const eFIRs = [
-    {
-      id: 'EFIR-001',
-      touristId: 'TID-1923',
-      touristName: 'Sarah Johnson',
-      incidentType: 'Missing Person',
-      dateCreated: '2024-01-15 13:45',
-      location: 'Fort Kochi, Kerala',
-      status: 'Under Investigation',
-      officerId: 'OFF-456',
-      priority: 'High'
-    },
-    {
-      id: 'EFIR-002',
-      touristId: 'TID-7834',
-      touristName: 'Hans Mueller',
-      incidentType: 'Theft',
-      dateCreated: '2024-01-15 11:15',
-      location: 'Hampi Ruins, Karnataka',
-      status: 'Evidence Collection',
-      officerId: 'OFF-123',
-      priority: 'Medium'
-    },
-    {
-      id: 'EFIR-003',
-      touristId: 'TID-5623',
-      touristName: 'Maria Garcia',
-      incidentType: 'Assault',
-      dateCreated: '2024-01-14 16:30',
-      location: 'Goa Beach, Goa',
-      status: 'Completed',
-      officerId: 'OFF-789',
-      priority: 'High'
-    }
-  ];
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Under Investigation': return 'text-yellow-400 bg-yellow-600/20';
-      case 'Evidence Collection': return 'text-blue-400 bg-blue-600/20';
-      case 'Completed': return 'text-green-400 bg-green-600/20';
-      default: return 'text-crypto-text-secondary bg-gray-600/20';
-    }
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'High': return 'text-red-400 bg-red-600/20';
-      case 'Medium': return 'text-yellow-400 bg-yellow-600/20';
-      case 'Low': return 'text-green-400 bg-green-600/20';
-      default: return 'text-crypto-text-secondary bg-gray-600/20';
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    setIsGenerating(true);
     setError(null);
     setSuccess(null);
 
+    const requestUrl = `${API_BASE_URL}/efir/generate`;
+
     try {
-      const response = await fetch(`${API_BASE_URL}/efir/generate`, {
+      const response = await fetch(requestUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -92,20 +53,17 @@ export const EFIR: React.FC = () => {
           description: formData.description,
           dateTime: formData.dateTime,
           witnesses: formData.witnesses || '',
-          evidence: formData.evidence || ''
+          evidence: ''
         }),
       });
 
       if (!response.ok) {
-        // Try to parse error message from JSON response
         const errorData = await response.json().catch(() => ({ error: 'Failed to generate EFIR' }));
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
 
-      // Check if response is PDF
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('application/pdf')) {
-        // Create blob and download PDF
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -124,41 +82,51 @@ export const EFIR: React.FC = () => {
           location: '',
           description: '',
           dateTime: '',
-          witnesses: '',
-          evidence: ''
+          witnesses: ''
         });
-
-        // Clear success message after 5 seconds
         setTimeout(() => setSuccess(null), 5000);
       } else {
         throw new Error('Unexpected response format. Expected PDF file.');
       }
     } catch (err: any) {
-      console.error('Error generating EFIR:', err);
-      setError(err.message || 'Failed to generate E-FIR. Please try again.');
-      // Clear error message after 5 seconds
-      setTimeout(() => setError(null), 5000);
+      console.error('❌ Error generating EFIR:', err);
+      let errorMessage = err.message || 'Failed to generate E-FIR. Please try again.';
+      
+      if (err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError') || err.name === 'TypeError') {
+        errorMessage = `Cannot connect to backend server. Please ensure:
+1. Backend server is running on port 3001
+2. Check backend console for errors
+3. Verify API URL: ${requestUrl}`;
+      }
+      
+      setError(errorMessage);
+      setTimeout(() => setError(null), 10000);
     } finally {
-      setIsLoading(false);
+      setIsGenerating(false);
     }
   };
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.6 }}
       className="space-y-6"
     >
-      <motion.div 
+      {/* Header */}
+      <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2, duration: 0.6 }}
         className="flex items-center justify-between"
       >
         <div>
-          <h1 className="text-3xl font-bold text-white font-medium" style={{ color: '#ffffff' }}>E-FIR Management</h1>
-          <p className="text-crypto-text-secondary mt-1">Digital First Information Reports for tourists</p>
+          <h1 className="text-3xl font-bold text-white font-medium" style={{ color: '#ffffff' }}>
+            E-FIR Management
+          </h1>
+          <p className="text-crypto-text-secondary mt-1">
+            Generate First Information Reports for tourist incidents
+          </p>
         </div>
         <motion.button
           whileHover={{ scale: 1.05 }}
@@ -171,98 +139,90 @@ export const EFIR: React.FC = () => {
         </motion.button>
       </motion.div>
 
-      {/* E-FIR List */}
-      <motion.div 
+      {/* Error Message */}
+      {error && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="crypto-card border border-red-500/50 bg-red-950/40 text-sm text-red-200"
+        >
+          <div className="flex items-start space-x-3">
+            <AlertCircle className="h-5 w-5 mt-1 text-red-400 flex-shrink-0" />
+            <div>
+              <p className="font-semibold text-red-100">Error</p>
+              <p className="whitespace-pre-line">{error}</p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Success Message */}
+      {success && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="crypto-card border border-green-500/50 bg-green-950/40 text-sm text-green-200"
+        >
+          <div className="flex items-start space-x-3">
+            <CheckCircle className="h-5 w-5 mt-1 text-green-400 flex-shrink-0" />
+            <div>
+              <p className="font-semibold text-green-100">Success</p>
+              <p>{success}</p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Information Card */}
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.8, duration: 0.6 }}
+        transition={{ delay: 0.4, duration: 0.6 }}
         className="crypto-card"
       >
-        <div className="p-6 border-b border-crypto-border/30">
-          <h2 className="text-xl font-semibold text-crypto-text-primary">Recent E-FIRs</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-crypto-surface/30">
-              <tr className="text-left text-crypto-text-secondary text-sm">
-                <th className="p-4">E-FIR ID</th>
-                <th className="p-4">Tourist</th>
-                <th className="p-4">Incident Type</th>
-                <th className="p-4">Date Created</th>
-                <th className="p-4">Location</th>
-                <th className="p-4">Status</th>
-                <th className="p-4">Priority</th>
-                <th className="p-4">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {eFIRs.map((efir, index) => (
-                <motion.tr 
-                  key={index} 
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 1 + index * 0.1, duration: 0.4 }}
-                  className="border-b border-crypto-border/30 hover:bg-crypto-surface/30 transition-all duration-200"
-                >
-                  <td className="p-4 font-medium text-crypto-accent">{efir.id}</td>
-                  <td className="p-4">
-                    <div>
-                      <p className="font-medium text-crypto-text-primary">{efir.touristName}</p>
-                      <p className="text-sm text-crypto-text-secondary">{efir.touristId}</p>
-                    </div>
-                  </td>
-                  <td className="p-4 text-crypto-text-primary">{efir.incidentType}</td>
-                  <td className="p-4 text-sm text-crypto-text-secondary">{efir.dateCreated}</td>
-                  <td className="p-4 text-sm text-crypto-text-secondary">{efir.location}</td>
-                  <td className="p-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(efir.status)}`}>
-                      {efir.status}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getPriorityColor(efir.priority)}`}>
-                      {efir.priority}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center space-x-2">
-                      <motion.button 
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 px-3 py-1 rounded text-xs font-medium text-white transition-all duration-200"
-                      >
-                        View
-                      </motion.button>
-                      <motion.button 
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="glass px-3 py-1 rounded text-xs font-medium text-crypto-text-primary hover:text-white transition-all duration-200"
-                      >
-                        Edit
-                      </motion.button>
-                    </div>
-                  </td>
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="p-6">
+          <h2 className="text-xl font-semibold text-crypto-text-primary mb-4">
+            E-FIR Generator
+          </h2>
+          <p className="text-crypto-text-secondary mb-4">
+            Fill in the essential details below to generate a formal First Information Report (FIR).
+            The system will create a professional PDF document using AI-powered content generation.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-crypto-text-secondary">
+            <div className="flex items-start space-x-2">
+              <FileText className="h-4 w-4 mt-1 text-crypto-accent" />
+              <div>
+                <p className="font-medium text-crypto-text-primary">AI-Generated Content</p>
+                <p>Professional FIR format with structured sections</p>
+              </div>
+            </div>
+            <div className="flex items-start space-x-2">
+              <FileText className="h-4 w-4 mt-1 text-crypto-accent" />
+              <div>
+                <p className="font-medium text-crypto-text-primary">PDF Download</p>
+                <p>Download the generated FIR as a PDF document</p>
+              </div>
+            </div>
+          </div>
         </div>
       </motion.div>
 
-      {/* E-FIR Creation Form Modal */}
+      {/* Create E-FIR Form Modal */}
       {showForm && (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => !isGenerating && setShowForm(false)}
         >
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.3 }}
             className="crypto-card max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="p-6 border-b border-crypto-border/30">
               <div className="flex items-center justify-between">
@@ -270,30 +230,18 @@ export const EFIR: React.FC = () => {
                 <motion.button
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
-                  onClick={() => setShowForm(false)}
-                  className="text-crypto-text-secondary hover:text-crypto-text-primary transition-colors"
+                  onClick={() => !isGenerating && setShowForm(false)}
+                  className="text-crypto-text-secondary hover:text-crypto-text-primary transition-colors text-2xl"
+                  disabled={isGenerating}
                 >
                   ✕
                 </motion.button>
               </div>
             </div>
-            
-            {/* Error/Success Messages */}
-            {error && (
-              <div className="mx-6 mt-4 p-4 bg-red-600/20 border border-red-500/50 rounded-lg flex items-center space-x-2">
-                <AlertCircle className="h-5 w-5 text-red-400" />
-                <p className="text-red-400 text-sm">{error}</p>
-              </div>
-            )}
-            {success && (
-              <div className="mx-6 mt-4 p-4 bg-green-600/20 border border-green-500/50 rounded-lg flex items-center space-x-2">
-                <CheckCircle className="h-5 w-5 text-green-400" />
-                <p className="text-green-400 text-sm">{success}</p>
-              </div>
-            )}
-            
+
             <form onSubmit={handleSubmit} className="p-6 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Tourist ID */}
                 <div>
                   <label className="block text-sm font-medium text-crypto-text-secondary mb-2">
                     Tourist ID *
@@ -307,10 +255,12 @@ export const EFIR: React.FC = () => {
                       className="w-full pl-10 pr-4 py-2 crypto-input"
                       placeholder="TID-1923"
                       required
+                      disabled={isGenerating}
                     />
                   </div>
                 </div>
 
+                {/* Incident Type */}
                 <div>
                   <label className="block text-sm font-medium text-crypto-text-secondary mb-2">
                     Incident Type *
@@ -320,6 +270,7 @@ export const EFIR: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, incidentType: e.target.value })}
                     className="w-full px-4 py-2 crypto-input"
                     required
+                    disabled={isGenerating}
                   >
                     <option value="">Select incident type</option>
                     <option value="Missing Person">Missing Person</option>
@@ -327,10 +278,13 @@ export const EFIR: React.FC = () => {
                     <option value="Assault">Assault</option>
                     <option value="Medical Emergency">Medical Emergency</option>
                     <option value="Fraud">Fraud</option>
+                    <option value="Accident">Accident</option>
+                    <option value="Lost Property">Lost Property</option>
                     <option value="Other">Other</option>
                   </select>
                 </div>
 
+                {/* Location */}
                 <div>
                   <label className="block text-sm font-medium text-crypto-text-secondary mb-2">
                     Location *
@@ -342,12 +296,14 @@ export const EFIR: React.FC = () => {
                       value={formData.location}
                       onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                       className="w-full pl-10 pr-4 py-2 crypto-input"
-                      placeholder="Fort Kochi, Kerala"
+                      placeholder="Shillong, Meghalaya"
                       required
+                      disabled={isGenerating}
                     />
                   </div>
                 </div>
 
+                {/* Date & Time */}
                 <div>
                   <label className="block text-sm font-medium text-crypto-text-secondary mb-2">
                     Date & Time *
@@ -360,11 +316,13 @@ export const EFIR: React.FC = () => {
                       onChange={(e) => setFormData({ ...formData, dateTime: e.target.value })}
                       className="w-full pl-10 pr-4 py-2 crypto-input"
                       required
+                      disabled={isGenerating}
                     />
                   </div>
                 </div>
               </div>
 
+              {/* Incident Description */}
               <div>
                 <label className="block text-sm font-medium text-crypto-text-secondary mb-2">
                   Incident Description *
@@ -373,66 +331,57 @@ export const EFIR: React.FC = () => {
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   className="w-full px-4 py-2 crypto-input"
-                  rows={4}
-                  placeholder="Provide detailed description of the incident..."
+                  rows={5}
+                  placeholder="Provide a detailed description of the incident, including what happened, sequence of events, and any relevant details..."
                   required
+                  disabled={isGenerating}
                 ></textarea>
               </div>
 
+              {/* Witnesses */}
               <div>
                 <label className="block text-sm font-medium text-crypto-text-secondary mb-2">
-                  Witnesses (if any)
+                  Witnesses (Optional)
                 </label>
                 <textarea
                   value={formData.witnesses}
                   onChange={(e) => setFormData({ ...formData, witnesses: e.target.value })}
                   className="w-full px-4 py-2 crypto-input"
                   rows={3}
-                  placeholder="Names and contact details of witnesses..."
+                  placeholder="Names and contact details of witnesses, if any..."
+                  disabled={isGenerating}
                 ></textarea>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-crypto-text-secondary mb-2">
-                  Evidence Upload
-                </label>
-                <div className="border-2 border-dashed border-slate-600 rounded-lg p-8 text-center hover:border-slate-500 transition-colors">
-                  <Upload className="h-12 w-12 text-crypto-text-secondary mx-auto mb-4" />
-                  <p className="text-crypto-text-secondary mb-2">Click to upload evidence files</p>
-                  <p className="text-sm text-gray-500">Images, GPS logs, audio recordings (Max 50MB)</p>
-                  <button
-                    type="button"
-                    className="mt-4 bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded transition-colors"
-                  >
-                    Choose Files
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex space-x-4">
+              {/* Form Actions */}
+              <div className="flex space-x-4 pt-4">
                 <motion.button
                   type="button"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={{ scale: isGenerating ? 1 : 1.02 }}
+                  whileTap={{ scale: isGenerating ? 1 : 0.98 }}
                   onClick={() => setShowForm(false)}
-                  className="flex-1 glass py-3 px-4 rounded-lg font-medium text-crypto-text-primary hover:text-white transition-all duration-200"
+                  disabled={isGenerating}
+                  className="flex-1 glass py-3 px-4 rounded-lg font-medium text-crypto-text-primary hover:text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </motion.button>
                 <motion.button
                   type="submit"
-                  disabled={isLoading}
-                  whileHover={{ scale: isLoading ? 1 : 1.02 }}
-                  whileTap={{ scale: isLoading ? 1 : 0.98 }}
+                  disabled={isGenerating}
+                  whileHover={{ scale: isGenerating ? 1 : 1.02 }}
+                  whileTap={{ scale: isGenerating ? 1 : 0.98 }}
                   className="flex-1 crypto-btn py-3 px-4 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                 >
-                  {isLoading ? (
+                  {isGenerating ? (
                     <>
                       <Loader2 className="h-5 w-5 animate-spin" />
                       <span>Generating E-FIR...</span>
                     </>
                   ) : (
-                    <span>Create E-FIR</span>
+                    <>
+                      <FileText className="h-5 w-5" />
+                      <span>Generate E-FIR</span>
+                    </>
                   )}
                 </motion.button>
               </div>

@@ -12,6 +12,7 @@
     "verify:data": "tsx scripts/verify-data.ts"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "^2.39.0",
     "@types/multer": "^2.0.0",
     "@types/qrcode": "^1.5.6",
@@ -28,8 +29,10 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
     "node-cron": "^3.0.3",
+    "pdfkit": "^0.17.2",
     "qrcode": "^1.5.4",
     "redis": "^4.6.10",
+    "twilio": "^5.10.7",
     "uuid": "^9.0.1",
     "xml2js": "^0.6.2",
     "zod": "^3.22.4"
@@ -41,6 +44,8 @@
     "@types/jsonwebtoken": "^9.0.5",
     "@types/node": "^20.10.5",
     "@types/node-cron": "^3.0.11",
+    "@types/pdfkit": "^0.17.4",
+    "@types/twilio": "^3.19.2",
     "@types/uuid": "^9.0.4",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3"

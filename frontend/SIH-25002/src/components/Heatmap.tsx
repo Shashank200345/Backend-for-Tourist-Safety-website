@@ -317,7 +317,7 @@ const Heatmap: React.FC = () => {
           // Replace the src below with your MapOG embed URL (from app.mapog.com -> Share/Embed)
           <iframe
             title="MapOG embed"
-            src="https://story.mapog.com/public/heatmap/MTkxNTYy"
+            src="https://story.mapog.com/public/Heatmaps/MTkyNzIy"
             style={{ width: '100%', height: '100%', border: 0 }}
             allowFullScreen
           />

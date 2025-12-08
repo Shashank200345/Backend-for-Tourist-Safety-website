@@ -46,7 +46,7 @@ export class QRCodeService {
 
       // Create QR code data - encode blockchain ID directly
       // Format: "BLOCKCHAIN_ID:blockchainId"
-      const qrCodeData = `BLOCKCHAIN_ID:${blockchainId}`;
+      const qrCodeData = `${blockchainId}`;
 
       // Generate QR code image (base64)
       const qrCodeImage = await QRCode.toDataURL(qrCodeData, {

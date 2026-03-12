@@ -137,21 +137,58 @@ async function handleZoneEvent(event: {
   );
   
   try {
-    // Send SMS alert
+    // Get zone information to check if it's a RED zone (RESTRICTED or EMERGENCY)
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('❌ Supabase credentials not configured');
+      return;
+    }
+    
+    // Use the existing supabaseRealtime client or create a new one for queries
+    const { data: zone, error: zoneError } = await supabaseRealtime
+      .from('zones')
+      .select('id, name, zone_type, risk_level')
+      .eq('id', event.zone_id)
+      .single();
+    
+    if (zoneError || !zone) {
+      console.error(`❌ Error fetching zone ${event.zone_id}:`, zoneError);
+      return;
+    }
+    
+    // Only send SMS for RED zones (RESTRICTED or EMERGENCY zones)
+    const isRedZone = zone.zone_type === 'RESTRICTED' || zone.zone_type === 'EMERGENCY';
+    
+    if (!isRedZone) {
+      console.log(
+        `⏭️ Geofence SMS Watcher: Skipping SMS for zone ${zone.name} (${zone.zone_type}) - not a RED zone`
+      );
+      return;
+    }
+    
+    console.log(
+      `🔴 RED ZONE DETECTED: ${zone.name} (${zone.zone_type}) - Sending SMS alert...`
+    );
+    
+    // Send SMS alert for RED zone entry
     const result = await sendGeofenceSMSAlert(
       event.user_id,
-      event.zone_id
+      event.zone_id,
+      zone.name,
+      zone.zone_type
     );
     
     if (result.success) {
       console.log(
-        `✅ Geofence SMS Watcher: SMS sent successfully for event ${event.id}`
+        `✅ Geofence SMS Watcher: SMS sent successfully for RED zone entry - ${zone.name} (Event: ${event.id})`
       );
     } else {
       // Log the reason for skipping/failure
       if (result.error) {
         console.log(
-          `⏭️ Geofence SMS Watcher: SMS not sent for event ${event.id} - ${result.error}`
+          `⏭️ Geofence SMS Watcher: SMS not sent for RED zone ${zone.name} (Event: ${event.id}) - ${result.error}`
         );
       }
     }

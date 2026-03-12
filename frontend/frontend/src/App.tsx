@@ -8,6 +8,8 @@ import { EFIR } from './components/EFIR';
 import { Geofences } from './components/Geofences';
 import { IncidentManagement } from './components/IncidentManagement';
 import { AuthPage } from './components/AuthPage';
+import { SMSService } from './components/SMSService';
+import { ApiKeys } from './components/ApiKeys';
 import type { TouristData } from './components/AuthPage';
 
 // 🎬 Animations
@@ -21,7 +23,9 @@ export type ActiveSection =
   | 'alerts'
   | 'efir'
   | 'geofences'
-  | 'incidents';
+  | 'incidents'
+  | 'sms-service'
+  | 'api-keys';
 
 function App() {
   const [activeSection, setActiveSection] = useState<ActiveSection>('dashboard');
@@ -50,6 +54,10 @@ function App() {
         return <Geofences />;
       case 'incidents':
         return <IncidentManagement />;
+      case 'sms-service':
+        return <SMSService />;
+      case 'api-keys':
+        return <ApiKeys />;
       default:
         return <Dashboard />;
     }

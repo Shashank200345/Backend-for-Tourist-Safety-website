@@ -84,7 +84,7 @@ export interface UserLocation {
   user_id: string | null;
   latitude: number;
   longitude: number;
-  accuracy_meters: number | null;
+  accuracy_m: number | null;
   altitude: number | null;
   heading: number | null;
   speed: number | null;

@@ -1,15 +1,22 @@
-import React, { useState } from 'react';
-import { Globe, Users, Key, Bell, Shield, Database, Wifi, Settings as SettingsIcon, Save, RefreshCw, CheckCircle, AlertTriangle, Activity, Lock } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Globe, Users, Key, Bell, Shield, Database, Wifi, Settings as SettingsIcon, Save, RefreshCw, CheckCircle, AlertTriangle, Activity, Lock, Phone, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { supabase, getCurrentUser, UserProfile } from '../lib/supabaseClient';
 
 export const Settings: React.FC = () => {
   const [selectedLanguage, setSelectedLanguage] = useState('en');
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [notifications, setNotifications] = useState({
     email: true,
     sms: true,
     push: true,
-    emergency: true
+    whatsapp: true
   });
+  const [userId, setUserId] = useState<string | null>(null);
 
   const languages = [
     { code: 'en', name: 'English' },
@@ -39,6 +46,116 @@ export const Settings: React.FC = () => {
     { service: 'IoT Data Stream', status: 'Syncing', apiKey: 'iot_****_****_1234' },
     { service: 'SMS Gateway', status: 'Connected', apiKey: 'sms_****_****_5678' }
   ];
+
+  // Load user profile and preferences on component mount
+  useEffect(() => {
+    loadUserProfile();
+  }, []);
+
+  const loadUserProfile = async () => {
+    setLoading(true);
+    try {
+      const user = await getCurrentUser();
+      if (!user) {
+        setErrorMessage('Please log in to view settings');
+        setLoading(false);
+        return;
+      }
+
+      setUserId(user.id);
+
+      // Fetch user profile from Supabase
+      const { data: profile, error } = await supabase
+        .from('user_profiles')
+        .select('phone_number, notification_preferences')
+        .eq('id', user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        // PGRST116 is "not found" - we'll create profile if it doesn't exist
+        console.error('Error loading profile:', error);
+        setErrorMessage('Failed to load profile');
+      } else if (profile) {
+        // Update state with fetched data
+        setPhoneNumber(profile.phone_number || '');
+        if (profile.notification_preferences) {
+          setNotifications({
+            email: profile.notification_preferences.email !== false,
+            sms: profile.notification_preferences.sms !== false,
+            push: profile.notification_preferences.push !== false,
+            whatsapp: profile.notification_preferences.whatsapp !== false
+          });
+        }
+      }
+    } catch (error: any) {
+      console.error('Error loading profile:', error);
+      setErrorMessage('Failed to load settings');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    if (!userId) {
+      setErrorMessage('Please log in to save settings');
+      return;
+    }
+
+    setSaving(true);
+    setSuccessMessage(null);
+    setErrorMessage(null);
+
+    try {
+      // Prepare notification preferences
+      const notificationPrefs = {
+        email: notifications.email,
+        sms: notifications.sms,
+        push: notifications.push,
+        whatsapp: notifications.whatsapp
+      };
+
+      // Check if profile exists
+      const { data: existingProfile } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('id', userId)
+        .single();
+
+      if (existingProfile) {
+        // Update existing profile
+        const { error } = await supabase
+          .from('user_profiles')
+          .update({
+            phone_number: phoneNumber || null,
+            notification_preferences: notificationPrefs,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', userId);
+
+        if (error) throw error;
+      } else {
+        // Create new profile
+        const { error } = await supabase
+          .from('user_profiles')
+          .insert({
+            id: userId,
+            phone_number: phoneNumber || null,
+            notification_preferences: notificationPrefs
+          });
+
+        if (error) throw error;
+      }
+
+      setSuccessMessage('Settings saved successfully!');
+      setTimeout(() => setSuccessMessage(null), 5000);
+    } catch (error: any) {
+      console.error('Error saving settings:', error);
+      setErrorMessage(error.message || 'Failed to save settings');
+      setTimeout(() => setErrorMessage(null), 5000);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <motion.div 
@@ -82,10 +199,21 @@ export const Settings: React.FC = () => {
           <motion.button 
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="crypto-btn flex items-center space-x-2"
+            onClick={handleSaveSettings}
+            disabled={saving || loading}
+            className="crypto-btn flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Save className="h-4 w-4" />
-            <span>Save All</span>
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Saving...</span>
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4" />
+                <span>Save All</span>
+              </>
+            )}
           </motion.button>
         </motion.div>
       </motion.div>
@@ -239,6 +367,41 @@ export const Settings: React.FC = () => {
         </motion.div>
       </div>
 
+      {/* Success/Error Messages */}
+      {successMessage && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="crypto-card border border-green-500/50 bg-green-950/40 text-sm text-green-200 p-4"
+        >
+          <div className="flex items-center space-x-3">
+            <CheckCircle className="h-5 w-5 text-green-400" />
+            <span>{successMessage}</span>
+          </div>
+        </motion.div>
+      )}
+
+      {errorMessage && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="crypto-card border border-red-500/50 bg-red-950/40 text-sm text-red-200 p-4"
+        >
+          <div className="flex items-center space-x-3">
+            <AlertTriangle className="h-5 w-5 text-red-400" />
+            <span>{errorMessage}</span>
+          </div>
+        </motion.div>
+      )}
+
+      {loading && (
+        <div className="crypto-card p-6 text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-crypto-accent" />
+          <p className="mt-4 text-crypto-text-secondary">Loading settings...</p>
+        </div>
+      )}
+
+      {!loading && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Language Settings */}
         <motion.div 
@@ -320,6 +483,26 @@ export const Settings: React.FC = () => {
             </motion.div>
             <h2 className="text-xl font-semibold text-crypto-text-primary">Notification Preferences</h2>
           </div>
+
+          {/* Phone Number Input */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-crypto-text-secondary mb-2">
+              Phone Number (for SMS Alerts)
+            </label>
+            <div className="relative">
+              <Phone className="absolute left-3 top-3 h-4 w-4 text-crypto-text-secondary" />
+              <input
+                type="tel"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                placeholder="+91 9876543210"
+                className="crypto-input w-full pl-10 pr-4 py-2"
+              />
+            </div>
+            <p className="text-xs text-crypto-text-secondary mt-2">
+              Include country code (e.g., +91 for India). Required for SMS alerts.
+            </p>
+          </div>
           
           <div className="space-y-4">
             {Object.entries(notifications).map(([key, value], index) => (
@@ -331,7 +514,10 @@ export const Settings: React.FC = () => {
                 className="flex items-center justify-between p-3 crypto-card border border-crypto-border/30 hover:border-crypto-accent/30 rounded-lg transition-all duration-200"
               >
                 <label className="text-sm font-medium text-crypto-text-primary capitalize cursor-pointer">
-                  {key === 'emergency' ? 'Emergency Alerts' : `${key} Notifications`}
+                  {key === 'sms' ? 'SMS Notifications' : 
+                   key === 'whatsapp' ? 'WhatsApp Notifications' :
+                   key === 'push' ? 'Push Notifications' :
+                   `${key} Notifications`}
                 </label>
                 <motion.button
                   whileHover={{ scale: 1.05 }}
@@ -355,18 +541,19 @@ export const Settings: React.FC = () => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1.6, duration: 0.5 }}
-            className="mt-6 p-4 crypto-card border border-yellow-500/20 bg-yellow-500/10 rounded-lg"
+            className="mt-6 p-4 crypto-card border border-blue-500/20 bg-blue-500/10 rounded-lg"
           >
             <div className="flex items-center space-x-2 mb-2">
-              <Shield className="h-4 w-4 text-yellow-400" />
-              <span className="text-sm font-medium text-yellow-400">Security Note</span>
+              <Bell className="h-4 w-4 text-blue-400" />
+              <span className="text-sm font-medium text-blue-400">SMS Alert Info</span>
             </div>
-            <p className="text-sm text-yellow-300">
-              Emergency alerts cannot be disabled for security reasons
+            <p className="text-sm text-blue-300">
+              SMS alerts are sent automatically when you enter geofenced zones. Cooldown: 30 minutes per zone.
             </p>
           </motion.div>
         </motion.div>
       </div>
+      )}
 
       {/* User Roles & Permissions */}
       <motion.div 

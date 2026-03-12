@@ -7,6 +7,9 @@ import authRoutes from './routes/auth.routes';
 import airportOnboardingRoutes from './routes/airportOnboarding.routes';
 import efirRoutes from './routes/efir.routes';
 import smsRoutes from './routes/sms.routes';
+import geofenceRoutes from './routes/geofence.routes';
+import heatmapRoutes from './routes/heatmap.routes';
+import apiKeyRoutes from './routes/apiKey.routes';
 import { startSessionExpirationJob } from './jobs/sessionExpirationJob';
 import { startGeofenceSMSWatcher } from './services/geofenceSMSWatcher';
 
@@ -46,6 +49,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/airport', airportOnboardingRoutes);
 app.use('/api/efir', efirRoutes);
 app.use('/api/sms', smsRoutes);
+app.use('/api/api-keys', apiKeyRoutes); // API key management (no auth required for generation)
+app.use('/api/geofence', geofenceRoutes); // Protected with API key
+app.use('/api/heatmap', heatmapRoutes); // Protected with API key
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

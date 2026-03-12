@@ -100,6 +100,8 @@ export const Header: React.FC<HeaderProps> = ({ activeSection, setActiveSection,
     { id: 'incidents' as ActiveSection, label: 'Incidents' },
     { id: 'efir' as ActiveSection, label: 'E-FIR' },
     { id: 'geofences' as ActiveSection, label: 'Geofences' },
+    { id: 'sms-service' as ActiveSection, label: 'SMS Service' },
+    { id: 'api-keys' as ActiveSection, label: 'API Keys' },
   ];
 
   return (

@@ -122,9 +122,10 @@ function formatPhoneNumber(phoneNumber: string): string | null {
 }
 
 /**
- * Get user's notification preferences and phone number
- * @param userId User ID
- * @returns User profile with preferences or null
+ * Get user's phone number from users table and notification preferences
+ * Handles mapping between auth.users.id and users.id (via direct match or email)
+ * @param userId User ID (typically from auth.users.id)
+ * @returns User data with phone number and preferences or null
  */
 async function getUserPreferences(userId: string): Promise<{
   phone_number: string | null;
@@ -133,18 +134,95 @@ async function getUserPreferences(userId: string): Promise<{
   } | null;
 } | null> {
   try {
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .select('phone_number, notification_preferences')
+    // Strategy 1: Direct match - try to find user by ID in users table
+    // (If users.id = auth.users.id)
+    let { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('contact_number, email')
       .eq('id', userId)
       .single();
     
-    if (error) {
-      console.error('Error fetching user preferences:', error);
+    // Strategy 2: If not found by ID, try to find by auth user's email
+    // (If users.email = auth.users.email, but IDs differ)
+    if (userError && userError.code === 'PGRST116') {
+      // PGRST116 = no rows returned
+      // Try to get auth user email and match with users.email
+      try {
+        // Use admin API to get auth user details
+        const { data: authUsers, error: authError } = await supabase.auth.admin.getUserById(userId);
+        
+        if (!authError && authUsers?.user?.email) {
+          // Find user in users table by email
+          const { data: userByEmail, error: emailError } = await supabase
+            .from('users')
+            .select('contact_number, email')
+            .eq('email', authUsers.user.email)
+            .single();
+          
+          if (!emailError && userByEmail) {
+            userData = userByEmail;
+            userError = null;
+          }
+        }
+      } catch (authErr) {
+        // If admin API fails, continue with error
+        console.warn('Could not fetch auth user details for mapping:', authErr);
+      }
+    }
+    
+    // If still no user found, return null
+    if (userError || !userData) {
+      console.error('Error fetching user from users table:', userError);
+      
+      // Fallback: Try user_profiles table (if it exists for backward compatibility)
+      const { data: profileData, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('phone_number, notification_preferences')
+        .eq('id', userId)
+        .single();
+      
+      if (!profileError && profileData) {
+        return {
+          phone_number: profileData.phone_number,
+          notification_preferences: profileData.notification_preferences,
+        };
+      }
+      
       return null;
     }
     
-    return data;
+    // Convert numeric contact_number to string
+    // Handle both numeric and string formats
+    let phoneNumber: string | null = null;
+    if (userData.contact_number !== null && userData.contact_number !== undefined) {
+      phoneNumber = String(userData.contact_number);
+      console.log(`📱 Found phone number for user ${userId}: ${phoneNumber} (from users.contact_number)`);
+    } else {
+      console.warn(`⚠️ User ${userId} found in users table but contact_number is null/empty`);
+    }
+    
+    // Try to get notification preferences from user_profiles (if exists)
+    // Otherwise default to SMS enabled
+    let notificationPreferences: { sms?: boolean } | null = { sms: true };
+    try {
+      const { data: profileData } = await supabase
+        .from('user_profiles')
+        .select('notification_preferences')
+        .eq('id', userId)
+        .single();
+      
+      if (profileData?.notification_preferences) {
+        notificationPreferences = profileData.notification_preferences;
+      }
+    } catch (err) {
+      // user_profiles might not exist, that's okay - use default
+      console.log('user_profiles not found or error fetching preferences, using defaults');
+    }
+    
+    return {
+      phone_number: phoneNumber,
+      notification_preferences: notificationPreferences,
+    };
   } catch (error) {
     console.error('Exception fetching user preferences:', error);
     return null;
@@ -192,25 +270,29 @@ function generateSMSMessage(
   zoneType: string,
   riskLevel?: string
 ): string {
-  let prefix = '';
-  
+  // This function is only called for RED zones (RESTRICTED/EMERGENCY)
+  // since the watcher filters before calling SMS service
   if (zoneType === 'RESTRICTED') {
-    prefix = '⚠️ HIGH RISK: ';
+    return `🚨 HIGH RISK ALERT: You have entered a RESTRICTED zone: "${zoneName}".
+
+⚠️ Please exercise extreme caution. Avoid this area if possible.
+
+Stay alert and follow all safety guidelines.
+Tourist Safety System - Safe Yatra`;
   } else if (zoneType === 'EMERGENCY') {
-    prefix = '🚨 EMERGENCY: ';
-  } else if (zoneType === 'MONITORED') {
-    prefix = '📍 MONITORED: ';
+    return `🚨 EMERGENCY ALERT: You have entered an EMERGENCY zone: "${zoneName}".
+
+⚠️ This is a high-risk area. Please leave immediately if safe to do so.
+
+Contact emergency services if needed.
+Tourist Safety System - Safe Yatra`;
   } else {
-    prefix = '📍 SAFE: ';
+    // Fallback (shouldn't reach here for SMS, but for completeness)
+    return `📍 Alert: You have entered zone "${zoneName}".
+
+Please stay alert.
+Tourist Safety System - Safe Yatra`;
   }
-  
-  const message = `${prefix}You have entered zone "${zoneName}".
-  
-Please stay alert and follow safety guidelines.
-
-Tourist Safety System`;
-
-  return message;
 }
 
 /**
@@ -348,5 +430,176 @@ export async function sendGeofenceSMSAlert(
  */
 export function isSMSServiceReady(): boolean {
   return twilioClient !== null && TWILIO_PHONE_NUMBER !== undefined;
+}
+
+/**
+ * Send a test SMS directly to verify Twilio integration
+ * This bypasses user preferences and cooldown for testing purposes
+ * @param phoneNumber Phone number to send test SMS to (E.164 format or will be formatted)
+ * @returns Success status and message
+ */
+export async function sendTestSMS(
+  phoneNumber: string
+): Promise<{ success: boolean; message: string; error?: string; sid?: string }> {
+  // Check if Twilio is configured
+  if (!twilioClient || !TWILIO_PHONE_NUMBER) {
+    return {
+      success: false,
+      message: 'SMS service not configured',
+      error: 'Twilio credentials not set. Please check TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER in .env file',
+    };
+  }
+
+  // Format phone number
+  const formattedPhone = formatPhoneNumber(phoneNumber);
+  if (!formattedPhone) {
+    return {
+      success: false,
+      message: 'Invalid phone number format',
+      error: `Unable to format phone number: ${phoneNumber}. Please provide a valid phone number (e.g., +919876543210 or 9876543210)`,
+    };
+  }
+
+  // Generate test message
+  const testMessage = `✅ Twilio SMS Test - Safe Yatra
+
+This is a test SMS to verify Twilio integration is working correctly.
+
+If you received this message, your SMS service is properly configured!
+
+Sent at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+Tourist Safety System`;
+
+  try {
+    console.log(`📤 Sending test SMS to: ${formattedPhone} from: ${TWILIO_PHONE_NUMBER}`);
+    
+    const result = await twilioClient.messages.create({
+      body: testMessage,
+      from: TWILIO_PHONE_NUMBER,
+      to: formattedPhone,
+    });
+
+    console.log(`✅ Test SMS sent successfully! Twilio SID: ${result.sid}`);
+    console.log(`   Status: ${result.status}`);
+    console.log(`   To: ${formattedPhone}`);
+    console.log(`   From: ${TWILIO_PHONE_NUMBER}`);
+
+    return {
+      success: true,
+      message: 'Test SMS sent successfully!',
+      sid: result.sid,
+    };
+  } catch (error: any) {
+    console.error('❌ Twilio Test SMS Error:', error);
+    
+    // Provide helpful error messages
+    let errorMessage = error.message || 'Unknown Twilio error';
+    if (error.code === 21211) {
+      errorMessage = 'Invalid phone number. Please check the number format.';
+    } else if (error.code === 21608) {
+      errorMessage = 'The phone number is not verified in your Twilio trial account. Verify it in Twilio Console.';
+    } else if (error.code === 21214) {
+      errorMessage = 'Invalid "from" phone number. Check TWILIO_PHONE_NUMBER in .env file.';
+    }
+
+    return {
+      success: false,
+      message: 'Failed to send test SMS',
+      error: errorMessage,
+    };
+  }
+}
+
+/**
+ * Send SMS and make phone call for geofence alert (hardcoded for testing)
+ * @param phoneNumber Phone number to send alert to (hardcoded if not provided)
+ * @param zoneName Zone name
+ * @param zoneType Zone type
+ * @returns Success status and message
+ */
+export async function sendGeofenceAlertWithCall(
+  phoneNumber?: string,
+  zoneName?: string,
+  zoneType?: string
+): Promise<{ success: boolean; message: string; smsSid?: string; callSid?: string; error?: string }> {
+  // Check if Twilio is configured
+  if (!twilioClient || !TWILIO_PHONE_NUMBER) {
+    return {
+      success: false,
+      message: 'SMS service not configured',
+      error: 'Twilio credentials not set',
+    };
+  }
+
+  // HARDCODED VALUES
+  const HARDCODED_PHONE = phoneNumber || process.env.HARDCODED_TEST_PHONE || '+919876543210';
+  const HARDCODED_ZONE_NAME = zoneName || 'High Risk Area';
+  const HARDCODED_ZONE_TYPE = zoneType || 'RESTRICTED';
+
+  // Format phone number
+  const formattedPhone = formatPhoneNumber(HARDCODED_PHONE);
+  if (!formattedPhone) {
+    return {
+      success: false,
+      message: 'Invalid phone number format',
+      error: 'Unable to format phone number',
+    };
+  }
+
+  // Generate alert message with precaution description
+  let alertMessage = '';
+  let precautionText = '';
+
+  if (HARDCODED_ZONE_TYPE === 'RESTRICTED') {
+    alertMessage = `🚨 HIGH RISK ALERT: You have entered a RESTRICTED zone: "${HARDCODED_ZONE_NAME}".`;
+    precautionText = 'Please exercise extreme caution. Avoid this area if possible. Stay alert and follow all safety guidelines. Contact local authorities if needed.';
+  } else if (HARDCODED_ZONE_TYPE === 'EMERGENCY') {
+    alertMessage = `🚨 EMERGENCY ALERT: You have entered an EMERGENCY zone: "${HARDCODED_ZONE_NAME}".`;
+    precautionText = 'This is a high-risk area. Please leave immediately if safe to do so. Contact emergency services if needed. Stay with a group and avoid isolated areas.';
+  } else {
+    alertMessage = `📍 Alert: You have entered zone "${HARDCODED_ZONE_NAME}".`;
+    precautionText = 'Please stay alert and follow local guidelines. Keep your emergency contacts informed of your location.';
+  }
+
+  const fullMessage = `${alertMessage}\n\n⚠️ Precaution: ${precautionText}\n\nTourist Safety System - Safe Yatra`;
+
+  try {
+    // Send SMS
+    const smsResult = await twilioClient.messages.create({
+      body: fullMessage,
+      from: TWILIO_PHONE_NUMBER,
+      to: formattedPhone,
+    });
+
+    console.log(`✅ SMS sent to ${formattedPhone}. SID: ${smsResult.sid}`);
+
+    // Make phone call with the same message
+    // Twilio will use text-to-speech to read the message
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
+    const voiceUrl = `${backendUrl}/api/sms/voice-alert?zoneName=${encodeURIComponent(HARDCODED_ZONE_NAME)}&zoneType=${encodeURIComponent(HARDCODED_ZONE_TYPE)}`;
+    
+    const callResult = await twilioClient.calls.create({
+      url: voiceUrl,
+      to: formattedPhone,
+      from: TWILIO_PHONE_NUMBER,
+      method: 'GET',
+    });
+
+    console.log(`✅ Phone call initiated to ${formattedPhone}. Call SID: ${callResult.sid}`);
+
+    return {
+      success: true,
+      message: 'SMS and phone call sent successfully',
+      smsSid: smsResult.sid,
+      callSid: callResult.sid,
+    };
+  } catch (error: any) {
+    console.error('❌ Error sending geofence alert:', error);
+    return {
+      success: false,
+      message: 'Failed to send alert',
+      error: error.message || 'Unknown error occurred',
+    };
+  }
 }
 

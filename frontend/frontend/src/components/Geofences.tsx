@@ -3368,7 +3368,7 @@ import React, { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import * as turf from "@turf/turf";
-import { MapPin, Plus, Edit, Trash2, Settings, Eye, Upload, AlertCircle, CheckCircle, X } from "lucide-react";
+import { MapPin, Plus, Edit, Trash2, Settings, Eye, Upload, AlertCircle, CheckCircle, X, Phone, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase, Zone, getCurrentUser } from "../lib/supabaseClient";
 import { GeoImport } from "./GeoImport";
@@ -3421,6 +3421,81 @@ export const Geofences: React.FC = () => {
   // Track which zones the user is currently inside
   const insideMapRef = useRef<Record<string, boolean>>({});
   const lastEventTimeRef = useRef<Record<string, number>>({}); // Cooldown tracking
+
+  // SMS Service status
+  const [smsStatus, setSmsStatus] = useState<{ smsServiceReady: boolean; watcher: { isWatching: boolean } } | null>(null);
+  const [userPhoneNumber, setUserPhoneNumber] = useState<string | null>(null);
+  const [isSendingAlert, setIsSendingAlert] = useState(false);
+
+  // Load SMS service status and user phone
+  useEffect(() => {
+    const loadSMSStatus = async () => {
+      try {
+        const getApiBaseUrl = () => {
+          const envUrl = import.meta.env.VITE_BACKEND_API;
+          if (envUrl) {
+            let url = envUrl.replace(/\/airport\/?$/, '');
+            if (!url.endsWith('/api')) {
+              url = url.replace(/\/api\/?$/, '') + '/api';
+            }
+            return url;
+          }
+          return 'http://localhost:3001/api';
+        };
+
+        const API_BASE_URL = getApiBaseUrl();
+        const response = await fetch(`${API_BASE_URL}/sms/status`);
+        if (response.ok) {
+          const data = await response.json();
+          setSmsStatus(data);
+        }
+      } catch (error) {
+        console.error('Error loading SMS status:', error);
+      }
+    };
+
+    const loadUserPhone = async () => {
+      try {
+        const user = await getCurrentUser();
+        if (user) {
+          // Try users table first
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('contact_number')
+            .eq('id', user.id)
+            .single();
+
+          if (!userError && userData?.contact_number) {
+            setUserPhoneNumber(String(userData.contact_number));
+          } else {
+            // Fallback to user_profiles
+            const { data: profileData } = await supabase
+              .from('user_profiles')
+              .select('phone_number')
+              .eq('id', user.id)
+              .single();
+
+            if (profileData?.phone_number) {
+              setUserPhoneNumber(profileData.phone_number);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error loading user phone:', error);
+      }
+    };
+
+    loadSMSStatus();
+    loadUserPhone();
+
+    // Refresh status every 30 seconds
+    const interval = setInterval(() => {
+      loadSMSStatus();
+      loadUserPhone();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Helper function to extract coordinates from geometry
   function extractCoordinatesFromGeometry(geometry: GeoJSON.Geometry): { lat: number; lng: number } {
@@ -3707,7 +3782,7 @@ export const Geofences: React.FC = () => {
         user_id: userId,
         latitude: lat,
         longitude: lng,
-        accuracy_meters: position?.coords.accuracy || null,
+        accuracy_m: position?.coords.accuracy || null,
         altitude: position?.coords.altitude || null,
         heading: position?.coords.heading || null,
         speed: position?.coords.speed || null,
@@ -4481,13 +4556,24 @@ export const Geofences: React.FC = () => {
       } else {
         console.info(`✅ Entered zone: ${zone.name} - Event logged to Supabase`);
         
+        // Check if this is a RESTRICTED or EMERGENCY zone (RED zones) - SMS will be sent automatically
+        const isRestrictedZone = (zone.zone_type || zone.type) === 'RESTRICTED' || 
+                                 (zone.zone_type || zone.type) === 'EMERGENCY';
+        
         // Show on-screen notification
         showNotification({
           type: 'ENTER',
           zoneName: zone.name,
           zoneType: zone.zone_type || zone.type,
-          message: `You entered ${zone.name}`,
+          message: isRestrictedZone 
+            ? `⚠️ You entered ${zone.name}. SMS alert has been sent to your phone.`
+            : `You entered ${zone.name}`,
         });
+
+        // Log SMS trigger for restricted zones
+        if (isRestrictedZone && userId) {
+          console.info(`📱 SMS Alert: Restricted zone entry detected. SMS will be sent to user ${userId}`);
+        }
       }
 
       // Trigger notification if enabled
@@ -4750,6 +4836,62 @@ export const Geofences: React.FC = () => {
       setNotifications((prev) => prev.filter((n) => n.id !== newNotification.id));
     }, 10000);
   }
+
+  // Simulate geofence entry and send SMS + phone call alert
+  const handleSimulateGeofenceAlert = async () => {
+    if (isSendingAlert) return;
+
+    setIsSendingAlert(true);
+    try {
+      const getApiBaseUrl = () => {
+        const envUrl = import.meta.env.VITE_BACKEND_API;
+        if (envUrl) {
+          let url = envUrl.replace(/\/airport\/?$/, '');
+          if (!url.endsWith('/api')) {
+            url = url.replace(/\/api\/?$/, '') + '/api';
+          }
+          return url;
+        }
+        return 'http://localhost:3001/api';
+      };
+
+      const API_BASE_URL = getApiBaseUrl();
+      
+      // Get first RESTRICTED or EMERGENCY zone, or use defaults
+      const restrictedZone = geofences.find(z => z.zone_type === 'RESTRICTED' || z.zone_type === 'EMERGENCY');
+      const zoneName = restrictedZone?.name || 'High Risk Area';
+      const zoneType = restrictedZone?.zone_type || 'RESTRICTED';
+
+      const response = await fetch(`${API_BASE_URL}/sms/simulate-geofence-alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phoneNumber: userPhoneNumber || undefined, // Use hardcoded if not provided
+          zoneName,
+          zoneType,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        showNotification({
+          type: 'ENTER',
+          zoneName,
+          zoneType,
+          message: `✅ Alert sent! SMS and phone call delivered to ${result.details.phoneNumber}`,
+        });
+        alert(`✅ Success!\n\nSMS and phone call sent successfully!\n\nZone: ${zoneName}\nPhone: ${result.details.phoneNumber}\nSMS SID: ${result.smsSid}\nCall SID: ${result.callSid}`);
+      } else {
+        alert(`❌ Failed to send alert:\n\n${result.error || result.message}`);
+      }
+    } catch (error: any) {
+      console.error('Error sending geofence alert:', error);
+      alert(`❌ Error: ${error.message || 'Failed to send alert'}`);
+    } finally {
+      setIsSendingAlert(false);
+    }
+  };
 
   // Helper small UI functions
   const getZoneTypeColor = (type: string) => {
@@ -5027,6 +5169,21 @@ export const Geofences: React.FC = () => {
             >
               <Plus className="h-4 w-4" />
               <span>Create Geofence</span>
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleSimulateGeofenceAlert}
+              disabled={isSendingAlert}
+              className="crypto-btn flex items-center space-x-2 text-sm px-4 py-2 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Simulate user inside geofence and send SMS + phone call alert"
+            >
+              {isSendingAlert ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Phone className="h-4 w-4" />
+              )}
+              <span>{isSendingAlert ? 'Sending...' : 'Test Alert (SMS + Call)'}</span>
             </motion.button>
           </div>
         </div>

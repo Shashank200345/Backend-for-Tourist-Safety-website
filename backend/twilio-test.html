@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Twilio SMS Test - Safe Yatra</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .helper-text {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+        }
+        
+        .api-url-group {
+            margin-bottom: 20px;
+        }
+        
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .result {
+            margin-top: 20px;
+            padding: 16px;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        .result.success {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            color: #155724;
+        }
+        
+        .result.error {
+            background: #f8d7da;
+            border: 2px solid #dc3545;
+            color: #721c24;
+        }
+        
+        .result.show {
+            display: block;
+        }
+        
+        .result h3 {
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .result p {
+            margin: 5px 0;
+            font-size: 14px;
+            word-break: break-word;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .status-check {
+            margin-bottom: 20px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+        
+        .status-check button {
+            margin-top: 10px;
+            padding: 8px 16px;
+            background: #6c757d;
+            font-size: 14px;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-indicator.ready {
+            background: #28a745;
+        }
+        
+        .status-indicator.not-ready {
+            background: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📱 Twilio SMS Test</h1>
+        <p class="subtitle">Test your Twilio integration for Safe Yatra</p>
+        
+        <div class="status-check" id="statusCheck">
+            <div>
+                <span class="status-indicator" id="statusIndicator"></span>
+                <span id="statusText">Checking SMS service status...</span>
+            </div>
+            <button onclick="checkStatus()" style="margin-top: 10px; padding: 8px 16px; background: #6c757d; font-size: 14px;">Refresh Status</button>
+        </div>
+        
+        <div class="api-url-group">
+            <label for="apiUrl">Backend API URL:</label>
+            <input 
+                type="text" 
+                id="apiUrl" 
+                value="http://localhost:3001/api/sms/test" 
+                placeholder="http://localhost:3001/api/sms/test"
+            />
+            <p class="helper-text">Change this if your backend is running on a different URL</p>
+        </div>
+        
+        <div class="form-group">
+            <label for="phoneNumber">Phone Number:</label>
+            <input 
+                type="text" 
+                id="phoneNumber" 
+                placeholder="+919876543210 or 9876543210" 
+                required
+            />
+            <p class="helper-text">Include country code (e.g., +91 for India). For Twilio trial accounts, the number must be verified.</p>
+        </div>
+        
+        <button id="sendBtn" onclick="sendTestSMS()">
+            Send Test SMS
+        </button>
+        
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        const API_URL_DEFAULT = 'http://localhost:3001/api/sms/test';
+        
+        // Check status on page load
+        window.onload = () => {
+            checkStatus();
+        };
+        
+        async function checkStatus() {
+            const statusText = document.getElementById('statusText');
+            const statusIndicator = document.getElementById('statusIndicator');
+            const apiUrl = document.getElementById('apiUrl').value;
+            const statusUrl = apiUrl.replace('/test', '/status');
+            
+            statusText.textContent = 'Checking SMS service status...';
+            statusIndicator.className = 'status-indicator';
+            
+            try {
+                const response = await fetch(statusUrl);
+                const data = await response.json();
+                
+                if (data.smsServiceReady) {
+                    statusText.textContent = 'SMS Service: Ready ✅';
+                    statusIndicator.className = 'status-indicator ready';
+                } else {
+                    statusText.textContent = 'SMS Service: Not Configured ❌ - Check Twilio credentials in backend/.env';
+                    statusIndicator.className = 'status-indicator not-ready';
+                }
+            } catch (error) {
+                statusText.textContent = 'Cannot connect to backend. Make sure server is running on port 3001.';
+                statusIndicator.className = 'status-indicator not-ready';
+                console.error('Status check error:', error);
+            }
+        }
+        
+        async function sendTestSMS() {
+            const phoneNumber = document.getElementById('phoneNumber').value.trim();
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            const sendBtn = document.getElementById('sendBtn');
+            const result = document.getElementById('result');
+            
+            // Validate phone number
+            if (!phoneNumber) {
+                showResult('error', 'Error', 'Please enter a phone number');
+                return;
+            }
+            
+            // Disable button and show loading
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<span class="loading"></span> Sending SMS...';
+            result.className = 'result';
+            result.innerHTML = '';
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        phoneNumber: phoneNumber
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    showResult('success', '✅ Success!', 
+                        `Test SMS sent successfully!<br><br>
+                        <strong>Message SID:</strong> ${data.sid || 'N/A'}<br>
+                        <strong>Message:</strong> ${data.message}<br><br>
+                        Check your phone (${phoneNumber}) for the test message.`);
+                } else {
+                    showResult('error', '❌ Error', 
+                        `<strong>Failed to send SMS:</strong><br>${data.message || data.error || 'Unknown error'}<br><br>
+                        <strong>Common issues:</strong><br>
+                        • For Twilio trial accounts, verify the phone number in Twilio Console<br>
+                        • Check that TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER are set in backend/.env<br>
+                        • Ensure the phone number format is correct (e.g., +919876543210)`);
+                }
+            } catch (error) {
+                showResult('error', '❌ Connection Error', 
+                    `Cannot connect to backend API.<br><br>
+                    <strong>Make sure:</strong><br>
+                    • Backend server is running on port 3001<br>
+                    • Backend URL is correct: ${apiUrl}<br>
+                    • CORS is enabled for this origin<br><br>
+                    <strong>Error:</strong> ${error.message}`);
+            } finally {
+                // Re-enable button
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = 'Send Test SMS';
+            }
+        }
+        
+        function showResult(type, title, message) {
+            const result = document.getElementById('result');
+            result.className = `result ${type} show`;
+            result.innerHTML = `<h3>${title}</h3><p>${message}</p>`;
+            
+            // Scroll to result
+            result.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    </script>
+</body>
+</html>
+
